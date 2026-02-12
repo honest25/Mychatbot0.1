@@ -1,714 +1,175 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>Universal AI Chat • Advanced</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Universal AI Chat • Debug Mode</title>
 
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: { extend: { colors: { primary: '#0ea5e9' } } }
-    }
-  </script>
 
+  <!-- marked.js for markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
-    body.sidebar-open { overflow: hidden; }
-    #input-area { padding-bottom: env(safe-area-inset-bottom, 1rem); }
-    .message { max-width: 85%; }
-    @media (min-width: 768px) { .message { max-width: 70%; } }
-    pre { position: relative; overflow-x: auto; }
-    .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(0,0,0,0.5); color: white; border-radius: 0.25rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
-    pre:hover .copy-btn { opacity: 1; }
-    #preview-container img { max-height: 120px; object-fit: contain; }
-    .projects-panel { transition: transform 0.3s ease; }
-    .error-box { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 0.75rem; border: 1px solid #fecaca; }
-    .dark .error-box { background: #7f1d1d; color: #fecaca; border-color: #991b1b; }
+    body { font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+    .dark { background: #0f172a; color: #f8fafc; }
+    #loading { position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.4s; }
+    .dark #loading { background: #0f172a; color: white; }
   </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
+<body class="min-h-screen flex flex-col">
 
-  <!-- Loading -->
-  <div id="loading" class="fixed inset-0 bg-white dark:bg-slate-950 flex items-center justify-center z-50 transition-opacity duration-300">
-    <div class="text-lg font-medium animate-pulse">Initializing Advanced AI Chat...</div>
+  <!-- Loading screen -->
+  <div id="loading">
+    <div class="text-xl font-bold animate-pulse">Initializing Advanced AI Chat...</div>
   </div>
 
-  <div id="app" class="flex flex-1 overflow-hidden opacity-0 transition-opacity duration-500">
+  <div id="app" class="flex-1 flex flex-col opacity-0 transition-opacity duration-500 p-4 max-w-4xl mx-auto">
 
-    <!-- Sidebar -->
-    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 -translate-x-full md:translate-x-0 transition-transform flex flex-col">
+    <h1 class="text-3xl font-bold text-center mb-6 text-sky-600">AI Chat (Debug Mode)</h1>
 
-      <div class="p-4 border-b flex items-center justify-between">
-        <h1 class="text-xl font-bold text-primary">AI Chat</h1>
-        <button id="new-chat-btn" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        </button>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-history"></div>
-
-      <div class="p-4 border-t border-slate-200 dark:border-slate-800">
-        <h3 class="font-semibold mb-2 flex justify-between items-center">
-          Projects
-          <button id="new-project-btn" class="text-primary hover:text-sky-700 text-sm">+ New</button>
-        </h3>
-        <div id="projects-list" class="space-y-1 max-h-48 overflow-y-auto"></div>
-      </div>
-
-      <div class="p-4 border-t space-y-3">
-        <button id="dark-toggle" class="w-full flex justify-between items-center p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <span>Dark Mode</span>
-          <span id="theme-label">Off</span>
-        </button>
-        <button id="settings-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37zM15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          Settings
-        </button>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col">
-
-      <header class="md:hidden bg-white dark:bg-slate-900 border-b px-4 py-3 flex items-center justify-between">
-        <button id="menu-btn" class="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        </button>
-        <h2 id="chat-title" class="font-semibold truncate max-w-[60vw]">New Chat</h2>
-        <button id="projects-toggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
-        </button>
-      </header>
-
-      <div id="messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-48 md:pb-32">
-        <div class="text-center py-12 text-slate-500 dark:text-slate-400">
-          <h3 class="text-xl font-semibold mb-3">Welcome to Advanced AI Chat</h3>
-          <p>Type, speak, upload images (preview), organize by project...</p>
-        </div>
-      </div>
-
-      <!-- Input Area -->
-      <div id="input-area" class="fixed bottom-0 left-0 right-0 md:left-72 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl z-30">
-        <div id="preview-container" class="px-4 pt-2 flex gap-3 overflow-x-auto hidden"></div>
-
-        <form id="chat-form" class="max-w-4xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-3 items-end">
-          <div class="flex-1 flex gap-2">
-            <textarea
-              id="user-input"
-              rows="1"
-              placeholder="Ask anything... (Shift+Enter = new line)"
-              class="flex-1 resize-none rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-primary max-h-48 min-h-[52px] leading-6"
-            ></textarea>
-
-            <button type="button" id="voice-btn" class="self-end p-3 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice (Chrome/Edge best)">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 01-7 7m0 0a7 7 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 01-3-3V5a3 3 116 0v6a3 3 01-3 3z"/></svg>
-            </button>
-
-            <label class="self-end p-3 rounded-2xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image (preview)">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 003 3h10a3 3 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-              <input type="file" id="image-upload" accept="image/*" class="hidden"/>
-            </label>
-          </div>
-
-          <button type="submit" id="send-btn" class="self-end md:self-center p-3 rounded-2xl bg-primary text-white hover:bg-sky-600 disabled:opacity-50 transition-colors" disabled>
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-          </button>
-        </form>
-      </div>
-    </main>
-
-    <!-- Mobile Projects Panel -->
-    <div id="projects-panel" class="fixed inset-y-0 right-0 w-80 bg-white dark:bg-slate-900 shadow-2xl translate-x-full transition-transform z-50 flex flex-col md:hidden projects-panel">
-      <div class="p-4 border-b flex justify-between items-center">
-        <h2 class="text-lg font-semibold">Projects</h2>
-        <button id="close-projects" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-      <div class="p-4 flex-1 overflow-y-auto" id="projects-panel-content"></div>
+    <div id="messages" class="flex-1 overflow-y-auto border rounded-lg p-4 mb-4 bg-white dark:bg-gray-800 min-h-[300px]">
+      <p class="text-center text-gray-500">Welcome! Type below to start chatting.</p>
     </div>
 
-    <!-- Settings Modal -->
-    <div id="settings-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
-      <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div class="p-6 border-b flex justify-between items-center">
-          <h3 class="text-xl font-bold">Settings</h3>
-          <button id="close-settings" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <div class="p-6 space-y-6">
-          <div>
-            <label class="block text-sm font-medium mb-2">OpenRouter API Key</label>
-            <input type="password" id="api-key" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk-or-v1-xxxx"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-2">Model <span class="text-xs text-slate-500">(e.g. stepfun/step-3.5-flash:free)</span></label>
-            <input type="text" id="model" value="stepfun/step-3.5-flash:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-2">System Prompt (optional)</label>
-            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful assistant..."></textarea>
-          </div>
-          <button id="save-settings" class="w-full py-3 bg-primary text-white rounded-xl hover:bg-sky-600 font-medium">Save</button>
-        </div>
-      </div>
-    </div>
+    <form id="chat-form" class="flex gap-2">
+      <textarea id="user-input" rows="2" placeholder="Ask anything..." class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"></textarea>
+      <button type="submit" id="send-btn" class="px-6 py-3 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50" disabled>Send</button>
+    </form>
 
+    <div id="status" class="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center"></div>
+  </div>
+
+  <!-- Settings (minimal) -->
+  <div class="p-4 border-t">
+    <h2 class="text-lg font-semibold mb-2">Quick Settings</h2>
+    <input type="password" id="api-key" placeholder="OpenRouter API Key" class="w-full p-2 mb-2 border rounded">
+    <input type="text" id="model" value="qwen/qwen2.5-coder-7b-instruct:free" placeholder="Model" class="w-full p-2 mb-2 border rounded">
+    <button id="save-settings" class="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700">Save & Reload</button>
   </div>
 
   <script>
-    console.log("Script started – " + new Date().toISOString());
+    console.log("=== SCRIPT STARTED ===", new Date().toISOString());
 
-    // ────────────────────────────────────────────────
-    // State & Storage
-    // ────────────────────────────────────────────────
-    const STORAGE = {
-      CHATS: 'ai-chat-chats-v5',
-      PROJECTS: 'ai-chat-projects',
-      SETTINGS: 'ai-chat-settings',
-      THEME: 'ai-chat-theme'
-    };
+    const loading = document.getElementById('loading');
+    const app = document.getElementById('app');
+    const messages = document.getElementById('messages');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const form = document.getElementById('chat-form');
+    const apiKeyInput = document.getElementById('api-key');
+    const modelInput = document.getElementById('model');
+    const saveBtn = document.getElementById('save-settings');
+    const status = document.getElementById('status');
 
-    let chats = JSON.parse(localStorage.getItem(STORAGE.CHATS)) || [];
-    let projects = JSON.parse(localStorage.getItem(STORAGE.PROJECTS)) || [];
-    let currentChatId = chats.length ? chats[0].id : null;
-    let currentProjectId = null;
+    console.log("DOM elements grabbed");
 
-    let isDark = localStorage.getItem(STORAGE.THEME) === 'dark' ||
-                 (!localStorage.getItem(STORAGE.THEME) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-    let recognition = null;
-    let isListening = false;
-
-    const $ = id => document.getElementById(id);
-
-    // Simple uuid fallback (no crypto dependency)
-    function uuid() {
-      return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
-    }
-
-    function saveChats() { localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats)); }
-    function saveProjects() { localStorage.setItem(STORAGE.PROJECTS, JSON.stringify(projects)); }
-
-    function saveSettings() {
-      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify({
-        apiKey: els.apiKey.value.trim(),
-        model: els.model.value.trim() || 'stepfun/step-3.5-flash:free',
-        systemPrompt: els.systemPrompt.value.trim()
-      }));
-    }
-
-    function loadSettings() {
-      const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
-      els.apiKey.value = s.apiKey || '';
-      els.model.value = s.model || 'stepfun/step-3.5-flash:free';
-      els.systemPrompt.value = s.systemPrompt || '';
-      return s;
-    }
-
-    function applyTheme() {
-      document.documentElement.classList.toggle('dark', isDark);
-      els.themeLabel.textContent = isDark ? 'On' : 'Off';
-      localStorage.setItem(STORAGE.THEME, isDark ? 'dark' : 'light');
-    }
-
-    function autoGrow() {
-      if (els.userInput) {
-        els.userInput.style.height = 'auto';
-        els.userInput.style.height = Math.min(els.userInput.scrollHeight, 192) + 'px';
+    // Force hide loader after 8 seconds no matter what
+    setTimeout(() => {
+      console.log("FORCE HIDE triggered after timeout");
+      if (loading) {
+        loading.style.opacity = '0';
+        setTimeout(() => { loading.style.display = 'none'; }, 400);
       }
+      if (app) app.classList.remove('opacity-0');
+      if (status) status.innerHTML += '<br><span style="color:orange">Loader auto-hidden after timeout</span>';
+    }, 8000);
+
+    // Basic dark mode toggle (for testing)
+    document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    console.log("Basic setup done");
+
+    function addMessage(role, content) {
+      console.log("Adding message:", role, content.substring(0,50) + "...");
+      const div = document.createElement('div');
+      div.className = role === 'user' ? 'text-right mb-3' : 'text-left mb-3';
+      div.innerHTML = `<div class="inline-block p-3 rounded-lg ${role === 'user' ? 'bg-sky-100' : 'bg-gray-100 dark:bg-gray-700'} max-w-[80%]">${content}</div>`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
     }
 
-    function scrollToEnd() {
-      if (els.messages) {
-        els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: 'smooth' });
-      }
-    }
+    // Send message
+    if (form) {
+      form.onsubmit = async e => {
+        e.preventDefault();
+        const text = userInput.value.trim();
+        if (!text) return;
 
-    function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;' })[m]);
-    }
+        addMessage('user', text);
+        userInput.value = '';
+        sendBtn.disabled = true;
 
-    // ────────────────────────────────────────────────
-    // DOM Elements (with null checks)
-    // ────────────────────────────────────────────────
-    const els = {
-      loading: $('loading'),
-      app: $('app'),
-      sidebar: $('sidebar'),
-      menuBtn: $('menu-btn'),
-      chatHistory: $('chat-history'),
-      messages: $('messages'),
-      userInput: $('user-input'),
-      sendBtn: $('send-btn'),
-      form: $('chat-form'),
-      newChatBtn: $('new-chat-btn'),
-      chatTitle: $('chat-title'),
-      darkToggle: $('dark-toggle'),
-      themeLabel: $('theme-label'),
-      settingsModal: $('settings-modal'),
-      closeSettings: $('close-settings'),
-      saveSettings: $('save-settings'),
-      apiKey: $('api-key'),
-      model: $('model'),
-      systemPrompt: $('system-prompt'),
-      settingsBtn: $('settings-btn'),
-      voiceBtn: $('voice-btn'),
-      imageUpload: $('image-upload'),
-      previewContainer: $('preview-container'),
-      projectsList: $('projects-list'),
-      newProjectBtn: $('new-project-btn'),
-      projectsToggle: $('projects-toggle'),
-      projectsPanel: $('projects-panel'),
-      closeProjects: $('close-projects'),
-      projectsPanelContent: $('projects-panel-content')
-    };
+        const key = apiKeyInput.value.trim();
+        const model = modelInput.value.trim() || 'qwen/qwen2.5-coder-7b-instruct:free';
 
-    // ────────────────────────────────────────────────
-    // Chat & Project Logic (simplified)
-    // ────────────────────────────────────────────────
-    function createChat(title = 'New Chat') {
-      const chat = { id: uuid(), title, messages: [], projectId: currentProjectId, created: Date.now() };
-      chats.unshift(chat);
-      saveChats();
-      loadChat(chat.id);
-      renderHistory();
-    }
+        if (!key) {
+          addMessage('assistant', 'Error: Please enter your OpenRouter API key first.');
+          return;
+        }
 
-    function loadChat(id) {
-      currentChatId = id;
-      const chat = chats.find(c => c.id === id);
-      if (chat && els.chatTitle) els.chatTitle.textContent = chat.title;
-      if (chat) renderMessages(chat.messages);
-    }
+        addMessage('assistant', 'Thinking...');
 
-    function deleteChat(id) {
-      if (!confirm('Delete this chat?')) return;
-      chats = chats.filter(c => c.id !== id);
-      saveChats();
-      if (currentChatId === id) {
-        currentChatId = chats[0]?.id || null;
-        if (currentChatId) loadChat(currentChatId);
-        else createChat();
-      }
-      renderHistory();
-    }
-
-    function renameChat(id) {
-      const chat = chats.find(c => c.id === id);
-      if (!chat) return;
-      const title = prompt('New title:', chat.title)?.trim();
-      if (title) {
-        chat.title = title;
-        saveChats();
-        renderHistory();
-        if (currentChatId === id && els.chatTitle) els.chatTitle.textContent = title;
-      }
-    }
-
-    function renderHistory() {
-      if (!els.chatHistory) return;
-      els.chatHistory.innerHTML = chats.length ? '' : '<div class="p-4 text-center text-slate-500">No chats yet</div>';
-      chats.forEach(chat => {
-        const active = chat.id === currentChatId;
-        const item = document.createElement('div');
-        item.className = `group p-3 rounded-lg cursor-pointer transition-colors ${active ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`;
-        item.innerHTML = `
-          <div class="flex justify-between items-center">
-            <div class="truncate font-medium">${escapeHTML(chat.title)}</div>
-            <div class="hidden group-hover:flex gap-2">
-              <button class="rename p-1 text-sky-600" title="Rename"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-              <button class="delete p-1 text-red-600" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-            </div>
-          </div>
-          ${chat.projectId ? `<div class="text-xs text-slate-500">Project: ${projects.find(p=>p.id===chat.projectId)?.title || '?'}</div>` : ''}
-        `;
-        item.onclick = e => {
-          if (e.target.closest('button')) return;
-          loadChat(chat.id);
-          if (window.innerWidth < 768 && els.sidebar) els.sidebar.classList.add('-translate-x-full');
-        };
-        item.querySelector('.rename')?.onclick = () => renameChat(chat.id);
-        item.querySelector('.delete')?.onclick = () => deleteChat(chat.id);
-        els.chatHistory.appendChild(item);
-      });
-    }
-
-    function createProject() {
-      const title = prompt('Project name:')?.trim();
-      if (!title) return;
-      const proj = { id: uuid(), title, created: Date.now() };
-      projects.push(proj);
-      saveProjects();
-      currentProjectId = proj.id;
-      renderProjects();
-    }
-
-    function renderProjects() {
-      if (!els.projectsList || !els.projectsPanelContent) return;
-      const html = projects.length ? '' : '<div class="text-sm text-slate-500 p-2">No projects yet</div>';
-      els.projectsList.innerHTML = html;
-      els.projectsPanelContent.innerHTML = html;
-
-      projects.forEach(p => {
-        const item = document.createElement('div');
-        item.className = `p-2 rounded cursor-pointer text-sm ${p.id === currentProjectId ? 'bg-sky-100 dark:bg-sky-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`;
-        item.textContent = p.title;
-        item.onclick = () => { currentProjectId = p.id; renderProjects(); };
-        els.projectsList.appendChild(item.cloneNode(true));
-        els.projectsPanelContent.appendChild(item);
-      });
-    }
-
-    // ────────────────────────────────────────────────
-    // Messages & Streaming
-    // ────────────────────────────────────────────────
-    function renderMessages(messages) {
-      if (!els.messages) return;
-      els.messages.innerHTML = '';
-      messages.forEach(msg => {
-        const isUser = msg.role === 'user';
-        const div = document.createElement('div');
-        div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} message`;
-        const bubble = document.createElement('div');
-        bubble.className = `p-4 rounded-2xl prose dark:prose-invert max-w-none ${
-          isUser ? 'bg-primary text-white rounded-br-none' : 'bg-slate-200 dark:bg-slate-800 rounded-bl-none'
-        }`;
-
-        if (msg.error) {
-          bubble.innerHTML = `<div class="error-box">${escapeHTML(msg.error)}</div>`;
-        } else if (isUser) {
-          bubble.innerHTML = escapeHTML(msg.content).replace(/\n/g, '<br>');
-        } else {
-          bubble.innerHTML = marked.parse(msg.content || '');
-          bubble.querySelectorAll('pre code').forEach(block => {
-            const btn = document.createElement('button');
-            btn.className = 'copy-btn';
-            btn.textContent = 'Copy';
-            btn.onclick = () => {
-              navigator.clipboard.writeText(block.textContent).catch(() => {});
-              btn.textContent = 'Copied!';
-              setTimeout(() => btn.textContent = 'Copy', 2000);
-            };
-            block.parentElement.appendChild(btn);
+        try {
+          console.log("Sending API request to model:", model);
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${key}`
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: text }],
+              stream: false
+            })
           });
+
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+          const data = await res.json();
+          const reply = data.choices?.[0]?.message?.content || 'No reply received';
+
+          messages.lastChild.querySelector('div').textContent = reply;
+          console.log("Response received");
+        } catch (err) {
+          console.error("API error:", err);
+          messages.lastChild.querySelector('div').innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
         }
 
-        div.appendChild(bubble);
-        els.messages.appendChild(div);
-      });
-      scrollToEnd();
-    }
-
-    async function streamResponse(chat) {
-      const s = loadSettings();
-      if (!s.apiKey) {
-        chat.messages.push({ role: 'assistant', error: 'Please set your OpenRouter API key in Settings first.' });
-        renderMessages(chat.messages);
-        return;
-      }
-
-      const assistantMsg = { role: 'assistant', content: '' };
-      chat.messages.push(assistantMsg);
-
-      const msgDiv = document.createElement('div');
-      msgDiv.className = 'flex justify-start message';
-      const contDiv = document.createElement('div');
-      contDiv.className = 'p-4 rounded-2xl bg-slate-200 dark:bg-slate-800 rounded-bl-none prose dark:prose-invert max-w-none';
-      contDiv.textContent = 'Thinking...';
-      msgDiv.appendChild(contDiv);
-      els.messages.appendChild(msgDiv);
-      scrollToEnd();
-
-      try {
-        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${s.apiKey}`,
-            'HTTP-Referer': location.origin,
-            'X-Title': 'Advanced AI Chat'
-          },
-          body: JSON.stringify({
-            model: s.model,
-            messages: [
-              ...(s.systemPrompt.trim() ? [{ role: 'system', content: s.systemPrompt }] : []),
-              ...chat.messages.slice(0, -1)
-            ],
-            stream: true
-          })
-        });
-
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`API error: ${res.status} - ${errText}`);
-        }
-
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              try {
-                const parsed = JSON.parse(data);
-                const token = parsed.choices?.[0]?.delta?.content;
-                if (token) {
-                  assistantMsg.content += token;
-                  contDiv.innerHTML = marked.parse(assistantMsg.content);
-                  scrollToEnd();
-                }
-              } catch {}
-            }
-          }
-        }
-      } catch (err) {
-        assistantMsg.error = `Failed: ${err.message}\n\nTip: Check API key & model (try stepfun/step-3.5-flash:free or arcee-ai/trinity-large-preview:free)`;
-        contDiv.innerHTML = `<div class="error-box">${escapeHTML(assistantMsg.error)}</div>`;
-      }
-
-      saveChats();
-    }
-
-    // ────────────────────────────────────────────────
-    // Voice
-    // ────────────────────────────────────────────────
-    function initVoice() {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR || !els.voiceBtn) {
-        if (els.voiceBtn) {
-          els.voiceBtn.disabled = true;
-          els.voiceBtn.title = 'Voice not supported';
-        }
-        return;
-      }
-      recognition = new SR();
-      recognition.continuous = false;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = e => {
-        let transcript = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          transcript += e.results[i][0].transcript;
-        }
-        if (els.userInput) {
-          els.userInput.value = transcript;
-          autoGrow();
-          if (els.sendBtn) els.sendBtn.disabled = !transcript.trim();
-        }
-      };
-
-      recognition.onend = () => {
-        isListening = false;
-        if (els.voiceBtn) {
-          els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
-          els.voiceBtn.classList.add('bg-purple-600');
-        }
-      };
-
-      recognition.onerror = () => {
-        isListening = false;
-        if (els.voiceBtn) els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
+        sendBtn.disabled = false;
       };
     }
 
-    if (els.voiceBtn) {
-      els.voiceBtn.onclick = () => {
-        if (!recognition) return;
-        if (isListening) recognition.stop();
-        else {
-          recognition.start();
-          isListening = true;
-          els.voiceBtn.classList.remove('bg-purple-600');
-          els.voiceBtn.classList.add('bg-red-600', 'animate-pulse');
-        }
+    if (userInput) {
+      userInput.oninput = () => {
+        sendBtn.disabled = !userInput.value.trim();
       };
     }
 
-    // ────────────────────────────────────────────────
-    // Image Preview
-    // ────────────────────────────────────────────────
-    if (els.imageUpload) {
-      els.imageUpload.onchange = e => {
-        const file = e.target.files[0];
-        if (!file || !file.type.startsWith('image/')) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          if (els.previewContainer) {
-            els.previewContainer.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
-            els.previewContainer.classList.remove('hidden');
-          }
-        };
-        reader.readAsDataURL(file);
+    if (saveBtn) {
+      saveBtn.onclick = () => {
+        console.log("Settings saved – reloading");
+        localStorage.setItem('apiKey', apiKeyInput.value.trim());
+        localStorage.setItem('model', modelInput.value.trim());
+        location.reload();
       };
     }
 
-    // ────────────────────────────────────────────────
-    // Event Listeners (with null checks)
-    // ────────────────────────────────────────────────
-    if (els.menuBtn) els.menuBtn.onclick = () => {
-      if (els.sidebar) els.sidebar.classList.remove('-translate-x-full');
-      document.body.classList.add('sidebar-open');
-    };
+    // Load saved key/model if any
+    if (apiKeyInput) apiKeyInput.value = localStorage.getItem('apiKey') || '';
+    if (modelInput) modelInput.value = localStorage.getItem('model') || 'qwen/qwen2.5-coder-7b-instruct:free';
 
-    if (els.newChatBtn) els.newChatBtn.onclick = () => {
-      createChat();
-      if (window.innerWidth < 768 && els.sidebar) els.sidebar.classList.add('-translate-x-full');
-    };
-
-    if (els.form) els.form.onsubmit = async e => {
-      e.preventDefault();
-      const text = els.userInput?.value.trim() || '';
-      if (!text) return;
-
-      if (!currentChatId) createChat();
-      const chat = chats.find(c => c.id === currentChatId);
-      chat.messages.push({ role: 'user', content: text });
-
-      if (els.userInput) els.userInput.value = '';
-      if (els.previewContainer) {
-        els.previewContainer.classList.add('hidden');
-        els.previewContainer.innerHTML = '';
-      }
-      autoGrow();
-      if (els.sendBtn) els.sendBtn.disabled = true;
-
-      renderMessages(chat.messages);
-      saveChats();
-      scrollToEnd();
-
-      await streamResponse(chat);
-    };
-
-    if (els.userInput) {
-      els.userInput.oninput = () => {
-        if (els.sendBtn) els.sendBtn.disabled = !els.userInput.value.trim();
-        autoGrow();
-      };
-
-      els.userInput.onkeydown = e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          if (els.form) els.form.dispatchEvent(new Event('submit'));
-        }
-      };
+    // Show success if we reach here
+    console.log("Script reached end – should be visible now");
+    if (status) status.innerHTML = 'JavaScript is running! → Type a message and send.<br><small>Check console (F12) for logs</small>';
+    if (loading) {
+      loading.style.opacity = '0';
+      setTimeout(() => loading.style.display = 'none', 400);
     }
+    if (app) app.classList.remove('opacity-0');
 
-    if (els.darkToggle) els.darkToggle.onclick = () => { isDark = !isDark; applyTheme(); };
-
-    if (els.settingsBtn) els.settingsBtn.onclick = () => {
-      loadSettings();
-      if (els.settingsModal) els.settingsModal.classList.remove('hidden');
-    };
-
-    if (els.closeSettings) els.closeSettings.onclick = () => {
-      if (els.settingsModal) els.settingsModal.classList.add('hidden');
-    };
-
-    if (els.saveSettings) els.saveSettings.onclick = () => {
-      saveSettings();
-      alert('Settings saved!');
-      if (els.settingsModal) els.settingsModal.classList.add('hidden');
-    };
-
-    if (els.projectsToggle) els.projectsToggle.onclick = () => {
-      if (els.projectsPanel) els.projectsPanel.classList.remove('translate-x-full');
-    };
-
-    if (els.closeProjects) els.closeProjects.onclick = () => {
-      if (els.projectsPanel) els.projectsPanel.classList.add('translate-x-full');
-    };
-
-    if (els.newProjectBtn) els.newProjectBtn.onclick = createProject;
-
-    // ────────────────────────────────────────────────
-    // Init with heavy error catching
-    // ────────────────────────────────────────────────
-    function init() {
-      console.log("init() started");
-
-      const timeout = setTimeout(() => {
-        console.warn("Timeout – forcing hide");
-        if (els.loading) {
-          els.loading.innerHTML = '<div class="text-red-600 p-6 text-center">Loading stuck – check console (F12) for errors</div>';
-        }
-      }, 10000);
-
-      try {
-        console.log("Theme...");
-        applyTheme();
-
-        console.log("Settings...");
-        loadSettings();
-
-        console.log("Voice...");
-        initVoice();
-
-        console.log("Projects...");
-        renderProjects();
-
-        console.log("Chats check...");
-        if (chats.length === 0) createChat();
-        if (!currentChatId && chats.length > 0) currentChatId = chats[0].id;
-
-        console.log("History...");
-        renderHistory();
-
-        console.log("Load chat...");
-        loadChat(currentChatId);
-
-        console.log("Done – hiding loader");
-        clearTimeout(timeout);
-
-        if (els.loading) {
-          els.loading.style.opacity = '0';
-          setTimeout(() => {
-            if (els.loading) els.loading.style.display = 'none';
-            if (els.app) els.app.classList.remove('opacity-0');
-          }, 400);
-        }
-
-        autoGrow();
-        scrollToEnd();
-      } catch (err) {
-        console.error("init failed:", err);
-        clearTimeout(timeout);
-        if (els.loading) {
-          els.loading.innerHTML = `
-            <div class="text-red-600 p-6 text-center font-medium">
-              App failed to start<br><br>
-              Error: ${err.message || 'Unknown'}<br>
-              <small>Open console (F12) → Reload page</small>
-            </div>
-          `;
-        }
-      }
-    }
-
-    try {
-      init();
-    } catch (topErr) {
-      console.error("Top-level error:", topErr);
-      document.body.innerHTML = '<div style="padding:2rem;color:red;text-align:center">Critical startup error: ' + (topErr.message || 'Unknown') + '<br><br>Open console (F12) and refresh.</div>';
-    }
-
-    window.addEventListener('resize', () => {
-      autoGrow();
-      if (window.innerWidth >= 768) document.body.classList.remove('sidebar-open');
-    });
-
-    console.log("Script end");
   </script>
 </body>
 </html>
