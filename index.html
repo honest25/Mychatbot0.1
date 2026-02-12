@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>Universal AI Chat - Advanced</title>
   
-  <!-- Tailwind CDN -->
+  <!-- Tailwind CDN (using a reliable mirror) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -23,9 +23,6 @@
 
   <!-- Marked.js for markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  
-  <!-- Tesseract.js for OCR -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     body.sidebar-open { overflow: hidden; }
@@ -34,7 +31,6 @@
     .message-bubble { max-width: 85%; }
     @media (min-width: 768px) { .message-bubble { max-width: 75%; } }
     #preview-container img { max-height: 120px; object-fit: contain; }
-    #projects-panel { transition: all 0.3s ease; }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col antialiased">
@@ -96,14 +92,14 @@
       </header>
 
       <!-- Messages Area -->
-      <div id="messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-48 md:pb-32">
+      <div id="messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-40 md:pb-32">
         <div class="text-center text-gray-500 dark:text-gray-400 py-12">
-          <p class="text-lg font-medium mb-2">Welcome to Advanced Universal AI Chat</p>
-          <p class="text-sm">Type, speak, upload images, manage projects...</p>
+          <p class="text-lg font-medium mb-2">Welcome to Advanced AI Chat</p>
+          <p class="text-sm">Type, speak, upload images (preview only), manage projects...</p>
         </div>
       </div>
 
-      <!-- Input Area (extended) -->
+      <!-- Input Area -->
       <div id="chat-input-container" class="fixed bottom-0 left-0 right-0 md:left-72 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-2xl z-30">
         <div id="preview-container" class="px-4 pt-2 flex gap-3 overflow-x-auto hidden"></div>
         
@@ -112,17 +108,17 @@
             <textarea
               id="user-input"
               rows="1"
-              placeholder="Ask anything... (or speak / upload image)"
+              placeholder="Ask anything... (or use voice input)"
               class="flex-1 resize-none rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 max-h-40 min-h-[52px] leading-6"
             ></textarea>
             
             <!-- Voice Button -->
-            <button type="button" id="voice-btn" class="self-end p-3 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice Input">
+            <button type="button" id="voice-btn" class="self-end p-3 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice Input (Chrome/Edge best)">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
             </button>
             
-            <!-- Upload Button -->
-            <label class="self-end p-3 rounded-xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image">
+            <!-- Upload Button (preview only now) -->
+            <label class="self-end p-3 rounded-xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image (preview)">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
               <input type="file" id="image-upload" accept="image/*" class="hidden"/>
             </label>
@@ -143,7 +139,7 @@
     <!-- Projects Slide-over (mobile) -->
     <div id="projects-panel" class="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-900 shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col md:hidden">
       <div class="p-4 border-b flex justify-between items-center">
-        <h2 class="text-lg font-semibold">Projects & Tasks</h2>
+        <h2 class="text-lg font-semibold">Projects</h2>
         <button id="close-projects" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
@@ -200,10 +196,8 @@
 
     let recognition = null;
     let isListening = false;
-    let tesseractWorker = null;
 
     const $ = id => document.getElementById(id);
-    const $$ = sel => document.querySelectorAll(sel);
 
     // ────────────────────────────────────────────────
     // DOM Elements
@@ -308,11 +302,14 @@
     }
 
     function deleteChat(id) {
-      if (!confirm('Delete chat?')) return;
+      if (!confirm('Delete this chat?')) return;
       chats = chats.filter(c=>c.id!==id);
       saveChats();
-      if (currentChatId===id) currentChatId = chats.length ? chats[0].id : null;
-      if (currentChatId) switchChat(currentChatId); else createNewChat();
+      if (currentChatId===id) {
+        currentChatId = chats.length ? chats[0].id : null;
+        if (currentChatId) switchChat(currentChatId);
+        else createNewChat();
+      }
       renderChatList();
     }
 
@@ -358,7 +355,7 @@
     function createProject() {
       const title = prompt('Project name:')?.trim();
       if (!title) return;
-      const proj = { id: uuid(), title, tasks: [], createdAt: Date.now() };
+      const proj = { id: uuid(), title, createdAt: Date.now() };
       projects.push(proj);
       saveProjects();
       currentProjectId = proj.id;
@@ -366,12 +363,13 @@
     }
 
     function renderProjects() {
-      els.projectsList.innerHTML = projects.length ? '' : '<div class="text-sm text-gray-500">No projects</div>';
-      els.projectsPanelContent.innerHTML = els.projectsList.innerHTML;
+      const html = projects.length ? '' : '<div class="text-sm text-gray-500">No projects yet</div>';
+      els.projectsList.innerHTML = html;
+      els.projectsPanelContent.innerHTML = html;
 
       projects.forEach(p => {
         const item = document.createElement('div');
-        item.className = `p-2 rounded cursor-pointer text-sm ${p.id===currentProjectId?'bg-blue-100 dark:bg-blue-900/40': 'hover:bg-gray-100 dark:hover:bg-gray-800'}`;
+        item.className = `p-2 rounded cursor-pointer text-sm ${p.id===currentProjectId?'bg-blue-100 dark:bg-blue-900/40':'hover:bg-gray-100 dark:hover:bg-gray-800'}`;
         item.textContent = p.title;
         item.onclick = () => { currentProjectId = p.id; renderProjects(); };
         els.projectsList.appendChild(item.cloneNode(true));
@@ -402,7 +400,10 @@
 
     async function streamResponse(chat) {
       const s = loadSettings();
-      if (!s.apiKey) return alert('Set OpenRouter API key first.');
+      if (!s.apiKey) {
+        alert('Please set your OpenRouter API key in Settings first.');
+        return;
+      }
 
       const assistantMsg = { role: 'assistant', content: '' };
       chat.messages.push(assistantMsg);
@@ -434,7 +435,7 @@
           })
         });
 
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) throw new Error(`API error: ${res.status} - ${await res.text()}`);
 
         const reader = res.body.getReader();
         const dec = new TextDecoder();
@@ -461,7 +462,8 @@
           }
         }
       } catch (err) {
-        contDiv.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+        console.error(err);
+        contDiv.innerHTML = `<span class="text-red-600 dark:text-red-400">Error: ${err.message}</span>`;
       }
       saveChats();
     }
@@ -474,7 +476,7 @@
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         els.voiceBtn.disabled = true;
-        els.voiceBtn.title = 'Speech not supported in this browser';
+        els.voiceBtn.title = 'Voice not supported in this browser';
         return;
       }
 
@@ -484,9 +486,10 @@
       recognition.lang = 'en-US';
 
       recognition.onresult = e => {
-        const transcript = Array.from(e.results)
-          .map(r => r[0].transcript)
-          .join('');
+        let transcript = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          transcript += e.results[i][0].transcript;
+        }
         els.userInput.value = transcript;
         autoResize();
         els.sendBtn.disabled = !transcript.trim();
@@ -499,14 +502,15 @@
       };
 
       recognition.onerror = e => {
-        console.error('Speech error', e);
+        console.error('Speech recognition error', e);
         isListening = false;
         els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
+        els.voiceBtn.classList.add('bg-purple-600');
       };
     }
 
     els.voiceBtn.onclick = () => {
-      if (!recognition) return;
+      if (!recognition) return alert('Voice recognition not available in this browser.');
       if (isListening) {
         recognition.stop();
       } else {
@@ -518,22 +522,13 @@
     };
 
     // ────────────────────────────────────────────────
-    // Image Upload + OCR
+    // Image Preview (no OCR anymore)
     // ────────────────────────────────────────────────
 
-    async function initTesseract() {
-      tesseractWorker = await Tesseract.createWorker('eng', 1, {
-        workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-        langPath: 'https://tesseract-ocr.github.io/tessdata/',
-        corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-      });
-    }
-
-    els.imageUpload.onchange = async e => {
+    els.imageUpload.onchange = e => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (!file || !file.type.startsWith('image/')) return;
 
-      // Preview
       const reader = new FileReader();
       reader.onload = ev => {
         const img = document.createElement('img');
@@ -543,21 +538,6 @@
         els.previewContainer.classList.remove('hidden');
       };
       reader.readAsDataURL(file);
-
-      // OCR
-      if (tesseractWorker) {
-        els.userInput.placeholder = 'Extracting text from image...';
-        try {
-          const { data: { text } } = await tesseractWorker.recognize(file);
-          els.userInput.value = text.trim();
-          autoResize();
-          els.sendBtn.disabled = false;
-        } catch (err) {
-          console.error(err);
-          els.userInput.value = 'OCR failed: ' + err.message;
-        }
-        els.userInput.placeholder = 'Ask anything... (or speak / upload image)';
-      }
     };
 
     // ────────────────────────────────────────────────
@@ -632,30 +612,45 @@
     };
 
     // ────────────────────────────────────────────────
-    // Init
+    // Init with safety net
     // ────────────────────────────────────────────────
 
-    async function init() {
-      applyTheme();
-      loadSettings();
-      initSpeech();
-      await initTesseract();
+    function init() {
+      const loadingTimeout = setTimeout(() => {
+        console.warn('Loading timeout - forcing UI show');
+        els.loading.style.opacity = '0';
+        setTimeout(() => {
+          els.loading.style.display = 'none';
+          els.app.classList.remove('opacity-0');
+        }, 400);
+      }, 15000);
 
-      if (chats.length === 0) createNewChat();
-      if (!currentChatId || !chats.some(c=>c.id===currentChatId)) currentChatId = chats[0].id;
+      try {
+        applyTheme();
+        loadSettings();
+        initSpeech();
 
-      renderChatList();
-      renderProjects();
-      switchChat(currentChatId);
+        if (chats.length === 0) createNewChat();
+        if (!currentChatId || !chats.some(c=>c.id===currentChatId)) currentChatId = chats[0]?.id;
 
-      els.loading.style.opacity = '0';
-      setTimeout(() => {
-        els.loading.style.display = 'none';
-        els.app.classList.remove('opacity-0');
-      }, 400);
+        renderChatList();
+        renderProjects();
+        if (currentChatId) switchChat(currentChatId);
 
-      autoResize();
-      scrollBottom(false);
+        clearTimeout(loadingTimeout);
+        els.loading.style.opacity = '0';
+        setTimeout(() => {
+          els.loading.style.display = 'none';
+          els.app.classList.remove('opacity-0');
+        }, 400);
+
+        autoResize();
+        scrollBottom(false);
+      } catch (err) {
+        console.error('Init error:', err);
+        clearTimeout(loadingTimeout);
+        els.loading.innerHTML = `<div class="text-red-600 text-center p-4">Error loading app: ${err.message}<br>Open console (F12) for details</div>`;
+      }
     }
 
     init();
