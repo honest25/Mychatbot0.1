@@ -1,175 +1,423 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Universal AI Chat • Debug Mode</title>
+  <title>Universal AI Chat • Advanced</title>
 
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- marked.js for markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <!-- Google Drive Picker (optional – only loads if you use the button) -->
+  <script src="https://apis.google.com/js/api.js"></script>
+
   <style>
-    body { font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
-    .dark { background: #0f172a; color: #f8fafc; }
-    #loading { position: fixed; inset: 0; background: white; display: flex; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.4s; }
-    .dark #loading { background: #0f172a; color: white; }
+    body.sidebar-open { overflow: hidden; }
+    #input-area { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+    .message { max-width: 85%; }
+    @media (min-width: 768px) { .message { max-width: 70%; } }
+    pre { position: relative; overflow-x: auto; }
+    .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(0,0,0,0.5); color: white; border-radius: 0.25rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+    pre:hover .copy-btn { opacity: 1; }
+    #preview-container img { max-height: 140px; object-fit: contain; border-radius: 8px; }
+    .listening { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .error-box { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 0.75rem; border: 1px solid #fecaca; }
+    .dark .error-box { background: #7f1d1d; color: #fecaca; border-color: #991b1b; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
 
-  <!-- Loading screen -->
-  <div id="loading">
-    <div class="text-xl font-bold animate-pulse">Initializing Advanced AI Chat...</div>
+  <!-- Loading -->
+  <div id="loading" class="fixed inset-0 bg-white dark:bg-slate-950 flex items-center justify-center z-50 transition-opacity duration-300">
+    <div class="text-lg font-medium animate-pulse">Initializing Advanced AI Chat...</div>
   </div>
 
-  <div id="app" class="flex-1 flex flex-col opacity-0 transition-opacity duration-500 p-4 max-w-4xl mx-auto">
+  <div id="app" class="flex flex-1 overflow-hidden opacity-0 transition-opacity duration-500">
 
-    <h1 class="text-3xl font-bold text-center mb-6 text-sky-600">AI Chat (Debug Mode)</h1>
+    <!-- Sidebar (simplified) -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r -translate-x-full md:translate-x-0 transition-transform flex flex-col">
+      <div class="p-4 border-b flex items-center justify-between">
+        <h1 class="text-xl font-bold text-sky-600">AI Chat</h1>
+        <button id="new-chat-btn" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </button>
+      </div>
 
-    <div id="messages" class="flex-1 overflow-y-auto border rounded-lg p-4 mb-4 bg-white dark:bg-gray-800 min-h-[300px]">
-      <p class="text-center text-gray-500">Welcome! Type below to start chatting.</p>
+      <div class="flex-1 overflow-y-auto p-3" id="chat-history"></div>
+
+      <div class="p-4 border-t space-y-3">
+        <button id="settings-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+          <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37zM15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Settings
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col">
+
+      <header class="md:hidden bg-white dark:bg-slate-900 border-b px-4 py-3 flex items-center justify-between">
+        <button id="menu-btn" class="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <h2 id="chat-title" class="font-semibold truncate">New Chat</h2>
+        <div class="w-10"></div>
+      </header>
+
+      <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-6 pb-48 md:pb-32"></div>
+
+      <!-- Input Area with multiple upload buttons + speak mode -->
+      <div id="input-area" class="fixed bottom-0 left-0 right-0 md:left-72 bg-white dark:bg-slate-900 border-t shadow-2xl z-30">
+        <div id="preview-container" class="px-4 pt-2 flex gap-3 overflow-x-auto hidden"></div>
+
+        <form id="chat-form" class="max-w-4xl mx-auto px-4 py-4 flex flex-col gap-3">
+          <textarea
+            id="user-input"
+            rows="1"
+            placeholder="Ask anything... (Shift+Enter = new line)"
+            class="resize-none rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-sky-500 max-h-48 min-h-[52px] leading-6"
+          ></textarea>
+
+          <div class="flex justify-between items-center gap-2">
+            <!-- Upload buttons -->
+            <div class="flex gap-2">
+              <!-- Camera -->
+              <label class="p-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 cursor-pointer transition-colors" title="Take photo">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg>
+                <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden"/>
+              </label>
+
+              <!-- File / Gallery -->
+              <label class="p-3 rounded-xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Choose from files">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 003 3h10a3 3 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                <input type="file" id="file-input" accept="image/*" class="hidden"/>
+              </label>
+
+              <!-- Google Drive (placeholder – needs your API key setup) -->
+              <button type="button" id="drive-btn" class="p-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors" title="From Google Drive">
+                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 2L2 19.5h21L12.5 2zM12.5 5l7.5 13H5l7.5-13z"/></svg>
+              </button>
+            </div>
+
+            <!-- Speak mode toggle -->
+            <button type="button" id="speak-btn" class="p-3 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Hold to speak (continuous)">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+            </button>
+
+            <!-- Send -->
+            <button type="submit" id="send-btn" class="p-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 transition-colors" disabled>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="p-6 border-b flex justify-between items-center">
+        <h3 class="text-xl font-bold">Settings</h3>
+        <button id="close-settings" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-6">
+        <div>
+          <label class="block text-sm font-medium mb-2">OpenRouter API Key <span class="text-red-600 text-xs">(required)</span></label>
+          <input type="password" id="api-key" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk-or-v1-xxxx..."/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">Model</label>
+          <input type="text" id="model" value="qwen/qwen2.5-coder-7b-instruct:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-2">System Prompt (optional)</label>
+          <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful assistant..."></textarea>
+        </div>
+        <button id="save-settings" class="w-full py-3 bg-primary text-white rounded-xl hover:bg-sky-600 font-medium">Save</button>
+      </div>
     </div>
-
-    <form id="chat-form" class="flex gap-2">
-      <textarea id="user-input" rows="2" placeholder="Ask anything..." class="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"></textarea>
-      <button type="submit" id="send-btn" class="px-6 py-3 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50" disabled>Send</button>
-    </form>
-
-    <div id="status" class="mt-4 text-sm text-gray-600 dark:text-gray-400 text-center"></div>
-  </div>
-
-  <!-- Settings (minimal) -->
-  <div class="p-4 border-t">
-    <h2 class="text-lg font-semibold mb-2">Quick Settings</h2>
-    <input type="password" id="api-key" placeholder="OpenRouter API Key" class="w-full p-2 mb-2 border rounded">
-    <input type="text" id="model" value="qwen/qwen2.5-coder-7b-instruct:free" placeholder="Model" class="w-full p-2 mb-2 border rounded">
-    <button id="save-settings" class="w-full py-2 bg-green-600 text-white rounded hover:bg-green-700">Save & Reload</button>
   </div>
 
   <script>
-    console.log("=== SCRIPT STARTED ===", new Date().toISOString());
+    // ────────────────────────────────────────────────
+    // State
+    // ────────────────────────────────────────────────
+    const STORAGE = {
+      SETTINGS: 'ai-chat-settings-v2'
+    };
 
-    const loading = document.getElementById('loading');
-    const app = document.getElementById('app');
-    const messages = document.getElementById('messages');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
-    const form = document.getElementById('chat-form');
-    const apiKeyInput = document.getElementById('api-key');
-    const modelInput = document.getElementById('model');
-    const saveBtn = document.getElementById('save-settings');
-    const status = document.getElementById('status');
+    let recognition = null;
+    let isContinuousListening = false;
+    let currentChatId = 'default';
 
-    console.log("DOM elements grabbed");
+    const $ = id => document.getElementById(id);
 
-    // Force hide loader after 8 seconds no matter what
-    setTimeout(() => {
-      console.log("FORCE HIDE triggered after timeout");
-      if (loading) {
-        loading.style.opacity = '0';
-        setTimeout(() => { loading.style.display = 'none'; }, 400);
+    const els = {
+      loading: $('loading'),
+      app: $('app'),
+      messages: $('messages'),
+      userInput: $('user-input'),
+      sendBtn: $('send-btn'),
+      form: $('chat-form'),
+      speakBtn: $('speak-btn'),
+      cameraInput: $('camera-input'),
+      fileInput: $('file-input'),
+      driveBtn: $('drive-btn'),
+      previewContainer: $('preview-container'),
+      settingsModal: $('settings-modal'),
+      closeSettings: $('close-settings'),
+      saveSettings: $('save-settings'),
+      apiKeyInput: $('api-key'),
+      modelInput: $('model'),
+      systemPromptInput: $('system-prompt'),
+      settingsBtn: $('settings-btn')
+    };
+
+    // ────────────────────────────────────────────────
+    // Settings
+    // ────────────────────────────────────────────────
+    function saveSettings() {
+      const settings = {
+        apiKey: els.apiKeyInput.value.trim(),
+        model: els.modelInput.value.trim() || 'qwen/qwen2.5-coder-7b-instruct:free',
+        systemPrompt: els.systemPromptInput.value.trim()
+      };
+      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify(settings));
+    }
+
+    function loadSettings() {
+      const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
+      if (els.apiKeyInput) els.apiKeyInput.value = s.apiKey || '';
+      if (els.modelInput) els.modelInput.value = s.model || 'qwen/qwen2.5-coder-7b-instruct:free';
+      if (els.systemPromptInput) els.systemPromptInput.value = s.systemPrompt || '';
+      return s;
+    }
+
+    // ────────────────────────────────────────────────
+    // Image handling
+    // ────────────────────────────────────────────────
+    function handleImage(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+
+      const reader = new FileReader();
+      reader.onload = e => {
+        els.previewContainer.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        els.previewContainer.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    els.cameraInput.onchange = e => handleImage(e.target.files[0]);
+    els.fileInput.onchange = e => handleImage(e.target.files[0]);
+
+    // Google Drive placeholder (requires real API key setup – this is demo only)
+    if (els.driveBtn) {
+      els.driveBtn.onclick = () => {
+        alert("Google Drive integration requires your own Google API key and OAuth setup.\nThis is a placeholder button.");
+        // Real implementation would use gapi.client.drive.files.list(...) after auth
+      };
+    }
+
+    // ────────────────────────────────────────────────
+    // Speak mode (continuous listening)
+    // ────────────────────────────────────────────────
+    function initSpeech() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        els.speakBtn.disabled = true;
+        els.speakBtn.title = 'Speech not supported';
+        return;
       }
-      if (app) app.classList.remove('opacity-0');
-      if (status) status.innerHTML += '<br><span style="color:orange">Loader auto-hidden after timeout</span>';
-    }, 8000);
 
-    // Basic dark mode toggle (for testing)
-    document.documentElement.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches);
+      recognition = new SR();
+      recognition.continuous = true;         // continuous mode
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-    console.log("Basic setup done");
+      recognition.onresult = e => {
+        let transcript = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript;
+          if (e.results[i].isFinal) transcript += ' ';
+        }
+        if (els.userInput) {
+          els.userInput.value += transcript;
+          autoGrow();
+          els.sendBtn.disabled = !els.userInput.value.trim();
+        }
+      };
 
-    function addMessage(role, content) {
-      console.log("Adding message:", role, content.substring(0,50) + "...");
-      const div = document.createElement('div');
-      div.className = role === 'user' ? 'text-right mb-3' : 'text-left mb-3';
-      div.innerHTML = `<div class="inline-block p-3 rounded-lg ${role === 'user' ? 'bg-sky-100' : 'bg-gray-100 dark:bg-gray-700'} max-w-[80%]">${content}</div>`;
-      messages.appendChild(div);
-      messages.scrollTop = messages.scrollHeight;
+      recognition.onend = () => {
+        if (isContinuousListening) {
+          // Restart listening if still in speak mode
+          recognition.start();
+        } else {
+          els.speakBtn.classList.remove('bg-red-600', 'listening');
+          els.speakBtn.classList.add('bg-purple-600');
+        }
+      };
+
+      recognition.onerror = e => {
+        console.error('Speech error', e);
+        isContinuousListening = false;
+        els.speakBtn.classList.remove('bg-red-600', 'listening');
+        els.speakBtn.classList.add('bg-purple-600');
+      };
     }
 
-    // Send message
-    if (form) {
-      form.onsubmit = async e => {
+    els.speakBtn.onclick = () => {
+      if (!recognition) return alert('Speech recognition not available in this browser.');
+      
+      isContinuousListening = !isContinuousListening;
+
+      if (isContinuousListening) {
+        recognition.start();
+        els.speakBtn.classList.remove('bg-purple-600');
+        els.speakBtn.classList.add('bg-red-600', 'listening');
+        els.speakBtn.title = 'Tap to stop speaking';
+      } else {
+        recognition.stop();
+        els.speakBtn.classList.remove('bg-red-600', 'listening');
+        els.speakBtn.classList.add('bg-purple-600');
+        els.speakBtn.title = 'Hold to speak (continuous)';
+      }
+    };
+
+    // ────────────────────────────────────────────────
+    // Basic chat logic (streaming)
+    // ────────────────────────────────────────────────
+    async function sendMessage() {
+      const text = els.userInput.value.trim();
+      if (!text) return;
+
+      // Add user message
+      const userDiv = document.createElement('div');
+      userDiv.className = 'flex justify-end message';
+      userDiv.innerHTML = `<div class="p-4 rounded-2xl bg-sky-600 text-white rounded-br-none max-w-[80%] prose">${escapeHTML(text)}</div>`;
+      els.messages.appendChild(userDiv);
+      els.messages.scrollTop = els.messages.scrollHeight;
+
+      els.userInput.value = '';
+      autoGrow();
+      els.sendBtn.disabled = true;
+
+      // Add assistant placeholder
+      const aiDiv = document.createElement('div');
+      aiDiv.className = 'flex justify-start message';
+      aiDiv.innerHTML = `<div class="p-4 rounded-2xl bg-slate-200 dark:bg-slate-800 rounded-bl-none max-w-[80%] prose">Thinking...</div>`;
+      els.messages.appendChild(aiDiv);
+      els.messages.scrollTop = els.messages.scrollHeight;
+
+      const settings = loadSettings();
+      if (!settings.apiKey) {
+        aiDiv.querySelector('div').innerHTML = '<div class="error-box">Please set your OpenRouter API key in Settings</div>';
+        return;
+      }
+
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${settings.apiKey}`,
+            'HTTP-Referer': location.origin,
+            'X-Title': 'Universal AI Chat'
+          },
+          body: JSON.stringify({
+            model: settings.model,
+            messages: [
+              ...(settings.systemPrompt ? [{ role: 'system', content: settings.systemPrompt }] : []),
+              { role: 'user', content: text }
+            ],
+            stream: true
+          })
+        });
+
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let content = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                const token = parsed.choices?.[0]?.delta?.content || '';
+                content += token;
+                aiDiv.querySelector('div').innerHTML = marked.parse(content);
+                els.messages.scrollTop = els.messages.scrollHeight;
+              } catch {}
+            }
+          }
+        }
+      } catch (err) {
+        aiDiv.querySelector('div').innerHTML = `<div class="error-box">Error: ${err.message}</div>`;
+      }
+    }
+
+    els.form.onsubmit = e => {
+      e.preventDefault();
+      sendMessage();
+    };
+
+    els.userInput.oninput = () => {
+      els.sendBtn.disabled = !els.userInput.value.trim();
+      autoGrow();
+    };
+
+    els.userInput.onkeydown = e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        const text = userInput.value.trim();
-        if (!text) return;
+        sendMessage();
+      }
+    };
 
-        addMessage('user', text);
-        userInput.value = '';
-        sendBtn.disabled = true;
+    // ────────────────────────────────────────────────
+    // Settings modal
+    // ────────────────────────────────────────────────
+    els.settingsBtn.onclick = () => {
+      loadSettings();
+      els.settingsModal.classList.remove('hidden');
+    };
 
-        const key = apiKeyInput.value.trim();
-        const model = modelInput.value.trim() || 'qwen/qwen2.5-coder-7b-instruct:free';
+    els.closeSettings.onclick = () => els.settingsModal.classList.add('hidden');
 
-        if (!key) {
-          addMessage('assistant', 'Error: Please enter your OpenRouter API key first.');
-          return;
-        }
+    els.saveSettings.onclick = () => {
+      saveSettings();
+      alert('Settings saved');
+      els.settingsModal.classList.add('hidden');
+    };
 
-        addMessage('assistant', 'Thinking...');
+    // ────────────────────────────────────────────────
+    // Init
+    // ────────────────────────────────────────────────
+    function init() {
+      loadSettings();
 
-        try {
-          console.log("Sending API request to model:", model);
-          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${key}`
-            },
-            body: JSON.stringify({
-              model,
-              messages: [{ role: 'user', content: text }],
-              stream: false
-            })
-          });
+      if (els.loading) {
+        els.loading.style.opacity = '0';
+        setTimeout(() => {
+          els.loading.style.display = 'none';
+          els.app.classList.remove('opacity-0');
+        }, 400);
+      }
 
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-          const data = await res.json();
-          const reply = data.choices?.[0]?.message?.content || 'No reply received';
-
-          messages.lastChild.querySelector('div').textContent = reply;
-          console.log("Response received");
-        } catch (err) {
-          console.error("API error:", err);
-          messages.lastChild.querySelector('div').innerHTML = `<span style="color:red">Error: ${err.message}</span>`;
-        }
-
-        sendBtn.disabled = false;
-      };
+      autoGrow();
     }
 
-    if (userInput) {
-      userInput.oninput = () => {
-        sendBtn.disabled = !userInput.value.trim();
-      };
-    }
-
-    if (saveBtn) {
-      saveBtn.onclick = () => {
-        console.log("Settings saved – reloading");
-        localStorage.setItem('apiKey', apiKeyInput.value.trim());
-        localStorage.setItem('model', modelInput.value.trim());
-        location.reload();
-      };
-    }
-
-    // Load saved key/model if any
-    if (apiKeyInput) apiKeyInput.value = localStorage.getItem('apiKey') || '';
-    if (modelInput) modelInput.value = localStorage.getItem('model') || 'qwen/qwen2.5-coder-7b-instruct:free';
-
-    // Show success if we reach here
-    console.log("Script reached end – should be visible now");
-    if (status) status.innerHTML = 'JavaScript is running! → Type a message and send.<br><small>Check console (F12) for logs</small>';
-    if (loading) {
-      loading.style.opacity = '0';
-      setTimeout(() => loading.style.display = 'none', 400);
-    }
-    if (app) app.classList.remove('opacity-0');
-
+    init();
   </script>
 </body>
 </html>
