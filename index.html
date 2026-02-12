@@ -30,6 +30,13 @@
     pre:hover .copy-btn { opacity: 1; }
     #preview-container img { max-height: 120px; object-fit: contain; }
     .projects-panel { transition: transform 0.3s ease; }
+    .error-box {
+      background: #fee2e2; color: #991b1b; padding: 1rem;
+      border-radius: 0.75rem; border: 1px solid #fecaca;
+    }
+    .dark .error-box {
+      background: #7f1d1d; color: #fecaca; border-color: #991b1b;
+    }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
@@ -53,7 +60,7 @@
 
       <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-history"></div>
 
-      <!-- Projects Section -->
+      <!-- Projects -->
       <div class="p-4 border-t border-slate-200 dark:border-slate-800">
         <h3 class="font-semibold mb-2 flex justify-between items-center">
           Projects
@@ -74,7 +81,7 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main class="flex-1 flex flex-col">
 
       <header class="md:hidden bg-white dark:bg-slate-900 border-b px-4 py-3 flex items-center justify-between">
@@ -107,12 +114,10 @@
               class="flex-1 resize-none rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-primary max-h-48 min-h-[52px] leading-6"
             ></textarea>
 
-            <!-- Voice -->
-            <button type="button" id="voice-btn" class="self-end p-3 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice (best in Chrome/Edge)">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 116 0v6a3 3 01-3 3z"/></svg>
+            <button type="button" id="voice-btn" class="self-end p-3 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice (Chrome/Edge best)">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 01-7 7m0 0a7 7 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 01-3-3V5a3 3 116 0v6a3 3 01-3 3z"/></svg>
             </button>
 
-            <!-- Image Preview -->
             <label class="self-end p-3 rounded-2xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image (preview)">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 003 3h10a3 3 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
               <input type="file" id="image-upload" accept="image/*" class="hidden"/>
@@ -152,25 +157,26 @@
             <input type="password" id="api-key" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk-or-v1-xxxx"/>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">Model</label>
-            <input type="text" id="model" value="deepseek/deepseek-r1:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <label class="block text-sm font-medium mb-2">Model <span class="text-xs text-slate-500">(choose one that supports system prompts)</span></label>
+            <input type="text" id="model" value="qwen/qwen2.5-vl-3b-instruct:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           <div>
             <label class="block text-sm font-medium mb-2">System Prompt (optional)</label>
-            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful assistant..."></textarea>
+            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful, concise assistant..."></textarea>
           </div>
           <button id="save-settings" class="w-full py-3 bg-primary text-white rounded-xl hover:bg-sky-600 font-medium">Save</button>
         </div>
       </div>
     </div>
+
   </div>
 
   <script>
     // ────────────────────────────────────────────────
-    // State & Storage Keys
+    // State & Storage
     // ────────────────────────────────────────────────
     const STORAGE = {
-      CHATS: 'ai-chat-chats-v3',
+      CHATS: 'ai-chat-chats-v4',
       PROJECTS: 'ai-chat-projects',
       SETTINGS: 'ai-chat-settings',
       THEME: 'ai-chat-theme'
@@ -227,7 +233,7 @@
     // ────────────────────────────────────────────────
     // Utilities
     // ────────────────────────────────────────────────
-    function uuid() { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2); }
+    function uuid() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
     function saveChats() { localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats)); }
     function saveProjects() { localStorage.setItem(STORAGE.PROJECTS, JSON.stringify(projects)); }
@@ -235,7 +241,7 @@
     function saveSettings() {
       localStorage.setItem(STORAGE.SETTINGS, JSON.stringify({
         apiKey: els.apiKey.value.trim(),
-        model: els.model.value.trim() || 'deepseek/deepseek-r1:free',
+        model: els.model.value.trim() || 'qwen/qwen2.5-vl-3b-instruct:free',
         systemPrompt: els.systemPrompt.value.trim()
       }));
     }
@@ -243,7 +249,7 @@
     function loadSettings() {
       const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
       els.apiKey.value = s.apiKey || '';
-      els.model.value = s.model || 'deepseek/deepseek-r1:free';
+      els.model.value = s.model || 'qwen/qwen2.5-vl-3b-instruct:free';
       els.systemPrompt.value = s.systemPrompt || '';
       return s;
     }
@@ -264,11 +270,11 @@
     }
 
     function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+      return str.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;' })[m]);
     }
 
     // ────────────────────────────────────────────────
-    // Chat & Project Management
+    // Chat & Project Logic
     // ────────────────────────────────────────────────
     function createChat(title = 'New Chat') {
       const chat = { id: uuid(), title, messages: [], projectId: currentProjectId, created: Date.now() };
@@ -288,7 +294,7 @@
     }
 
     function deleteChat(id) {
-      if (!confirm('Delete conversation?')) return;
+      if (!confirm('Delete this chat?')) return;
       chats = chats.filter(c => c.id !== id);
       saveChats();
       if (currentChatId === id) {
@@ -364,7 +370,7 @@
     }
 
     // ────────────────────────────────────────────────
-    // Messages & Streaming
+    // Messages & Streaming (with better error handling)
     // ────────────────────────────────────────────────
     function renderMessages(messages) {
       els.messages.innerHTML = '';
@@ -376,9 +382,13 @@
         bubble.className = `p-4 rounded-2xl prose dark:prose-invert max-w-none ${
           isUser ? 'bg-primary text-white rounded-br-none' : 'bg-slate-200 dark:bg-slate-800 rounded-bl-none'
         }`;
-        bubble.innerHTML = isUser ? escapeHTML(msg.content).replace(/\n/g, '<br>') : marked.parse(msg.content || '');
 
-        if (!isUser) {
+        if (msg.error) {
+          bubble.innerHTML = `<div class="error-box">${escapeHTML(msg.error)}</div>`;
+        } else if (isUser) {
+          bubble.innerHTML = escapeHTML(msg.content).replace(/\n/g, '<br>');
+        } else {
+          bubble.innerHTML = marked.parse(msg.content || '');
           bubble.querySelectorAll('pre code').forEach(block => {
             const btn = document.createElement('button');
             btn.className = 'copy-btn';
@@ -400,7 +410,11 @@
 
     async function streamResponse(chat) {
       const s = loadSettings();
-      if (!s.apiKey) return alert('Set OpenRouter API key first.');
+      if (!s.apiKey) {
+        chat.messages.push({ role: 'assistant', error: 'Please set your OpenRouter API key in Settings first.' });
+        renderMessages(chat.messages);
+        return;
+      }
 
       const assistantMsg = { role: 'assistant', content: '' };
       chat.messages.push(assistantMsg);
@@ -409,7 +423,7 @@
       msgDiv.className = 'flex justify-start message';
       const contDiv = document.createElement('div');
       contDiv.className = 'p-4 rounded-2xl bg-slate-200 dark:bg-slate-800 rounded-bl-none prose dark:prose-invert max-w-none';
-      contDiv.innerHTML = 'Thinking...';
+      contDiv.textContent = 'Thinking...';
       msgDiv.appendChild(contDiv);
       els.messages.appendChild(msgDiv);
       scrollToEnd();
@@ -426,14 +440,17 @@
           body: JSON.stringify({
             model: s.model,
             messages: [
-              { role: 'system', content: s.systemPrompt || 'You are a helpful assistant.' },
+              ...(s.systemPrompt.trim() ? [{ role: 'system', content: s.systemPrompt }] : []),
               ...chat.messages.slice(0, -1)
             ],
             stream: true
           })
         });
 
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`API error: ${res.status} - ${errText}`);
+        }
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -460,31 +477,33 @@
           }
         }
       } catch (err) {
-        contDiv.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
+        assistantMsg.error = `Failed to get response: ${err.message}\n\nTip: Try changing the model to one that supports system prompts (e.g. qwen/qwen2.5-vl-3b-instruct:free or deepseek/deepseek-chat:free)`;
+        contDiv.innerHTML = `<div class="error-box">${escapeHTML(assistantMsg.error)}</div>`;
       }
+
       saveChats();
     }
 
     // ────────────────────────────────────────────────
-    // Voice Recognition
+    // Voice
     // ────────────────────────────────────────────────
     function initVoice() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
         els.voiceBtn.disabled = true;
-        els.voiceBtn.title = 'Voice not supported in this browser';
+        els.voiceBtn.title = 'Voice not supported';
         return;
       }
-
-      recognition = new SpeechRecognition();
+      recognition = new SR();
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = 'en-US';
 
       recognition.onresult = e => {
-        const transcript = Array.from(e.results)
-          .map(result => result[0].transcript)
-          .join('');
+        let transcript = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          transcript += e.results[i][0].transcript;
+        }
         els.userInput.value = transcript;
         autoGrow();
         els.sendBtn.disabled = !transcript.trim();
@@ -504,9 +523,8 @@
 
     els.voiceBtn.onclick = () => {
       if (!recognition) return;
-      if (isListening) {
-        recognition.stop();
-      } else {
+      if (isListening) recognition.stop();
+      else {
         recognition.start();
         isListening = true;
         els.voiceBtn.classList.remove('bg-purple-600');
@@ -520,7 +538,6 @@
     els.imageUpload.onchange = e => {
       const file = e.target.files[0];
       if (!file || !file.type.startsWith('image/')) return;
-
       const reader = new FileReader();
       reader.onload = ev => {
         els.previewContainer.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
@@ -576,10 +593,7 @@
       }
     };
 
-    els.darkToggle.onclick = () => {
-      isDark = !isDark;
-      applyTheme();
-    };
+    els.darkToggle.onclick = () => { isDark = !isDark; applyTheme(); };
 
     els.settingsBtn.onclick = () => {
       loadSettings();
@@ -600,7 +614,7 @@
     els.newProjectBtn.onclick = createProject;
 
     // ────────────────────────────────────────────────
-    // Init with Safety
+    // Init
     // ────────────────────────────────────────────────
     function init() {
       const timeout = setTimeout(() => {
