@@ -3,74 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>Universal AI Chat - Advanced</title>
-  
-  <!-- Tailwind CDN (using a reliable mirror) -->
+  <title>Universal AI Chat • Advanced</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            'gemini-bg': '#f8fafc',
-            'gemini-dark-bg': '#0f172a',
-          }
-        }
-      }
+      theme: { extend: { colors: { primary: '#0ea5e9' } } }
     }
   </script>
 
-  <!-- Marked.js for markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <style>
     body.sidebar-open { overflow: hidden; }
-    #chat-input-container { padding-bottom: env(safe-area-inset-bottom); }
-    .prose pre { min-width: 280px; max-width: 100%; overflow-x: auto; }
-    .message-bubble { max-width: 85%; }
-    @media (min-width: 768px) { .message-bubble { max-width: 75%; } }
+    #input-area { padding-bottom: env(safe-area-inset-bottom, 1rem); }
+    .message { max-width: 85%; }
+    @media (min-width: 768px) { .message { max-width: 70%; } }
+    pre { position: relative; overflow-x: auto; }
+    .copy-btn {
+      position: absolute; top: 0.5rem; right: 0.5rem;
+      padding: 0.25rem 0.5rem; font-size: 0.75rem;
+      background: rgba(0,0,0,0.5); color: white; border-radius: 0.25rem;
+      cursor: pointer; opacity: 0; transition: opacity 0.2s;
+    }
+    pre:hover .copy-btn { opacity: 1; }
     #preview-container img { max-height: 120px; object-fit: contain; }
+    .projects-panel { transition: transform 0.3s ease; }
   </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col antialiased">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
 
-  <!-- Loading overlay -->
-  <div id="loading" class="fixed inset-0 bg-white dark:bg-gray-950 flex items-center justify-center z-50 transition-opacity duration-300">
-    <div class="text-lg font-medium">Loading Advanced AI Chat...</div>
+  <!-- Loading -->
+  <div id="loading" class="fixed inset-0 bg-white dark:bg-slate-950 flex items-center justify-center z-50 transition-opacity duration-300">
+    <div class="text-lg font-medium animate-pulse">Initializing Advanced AI Chat...</div>
   </div>
 
-  <!-- App Container -->
   <div id="app" class="flex flex-1 overflow-hidden opacity-0 transition-opacity duration-500">
 
     <!-- Sidebar -->
-    <aside id="sidebar"
-          class="fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transform -translate-x-full transition-transform duration-300 md:relative md:translate-x-0 flex flex-col">
-      
-      <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-        <h1 class="text-xl font-semibold">Advanced AI Chat</h1>
-        <button id="new-chat-btn" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 -translate-x-full md:translate-x-0 transition-transform flex flex-col">
+
+      <div class="p-4 border-b flex items-center justify-between">
+        <h1 class="text-xl font-bold text-primary">AI Chat</h1>
+        <button id="new-chat-btn" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-list"></div>
+      <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-history"></div>
 
       <!-- Projects Section -->
-      <div class="p-4 border-t border-gray-200 dark:border-gray-800">
-        <h3 class="font-semibold mb-2 flex items-center justify-between">
+      <div class="p-4 border-t border-slate-200 dark:border-slate-800">
+        <h3 class="font-semibold mb-2 flex justify-between items-center">
           Projects
-          <button id="new-project-btn" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm">+ New</button>
+          <button id="new-project-btn" class="text-primary hover:text-sky-700 text-sm">+ New</button>
         </h3>
-        <div id="projects-list" class="space-y-1 max-h-40 overflow-y-auto"></div>
+        <div id="projects-list" class="space-y-1 max-h-48 overflow-y-auto"></div>
       </div>
 
-      <div class="p-4 border-t border-gray-200 dark:border-gray-800 space-y-3">
-        <button id="toggle-dark" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+      <div class="p-4 border-t space-y-3">
+        <button id="dark-toggle" class="w-full flex justify-between items-center p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
           <span>Dark Mode</span>
-          <span id="dark-mode-label">Off</span>
+          <span id="theme-label">Off</span>
         </button>
-        <button id="settings-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+        <button id="settings-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
           <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37zM15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           Settings
         </button>
@@ -78,69 +75,62 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 flex flex-col min-h-screen md:min-h-0">
+    <main class="flex-1 flex flex-col">
 
-      <!-- Top Bar (mobile + project info) -->
-      <header class="md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 flex items-center justify-between">
-        <button id="menu-toggle" class="p-2 -ml-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+      <header class="md:hidden bg-white dark:bg-slate-900 border-b px-4 py-3 flex items-center justify-between">
+        <button id="menu-btn" class="p-2 -ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
-        <h2 id="current-chat-title" class="font-medium truncate max-w-[50vw]">New Chat</h2>
-        <button id="toggle-projects" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <h2 id="chat-title" class="font-semibold truncate max-w-[60vw]">New Chat</h2>
+        <button id="projects-toggle" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg>
         </button>
       </header>
 
-      <!-- Messages Area -->
-      <div id="messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-40 md:pb-32">
-        <div class="text-center text-gray-500 dark:text-gray-400 py-12">
-          <p class="text-lg font-medium mb-2">Welcome to Advanced AI Chat</p>
-          <p class="text-sm">Type, speak, upload images (preview only), manage projects...</p>
+      <div id="messages" class="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 pb-48 md:pb-32">
+        <div class="text-center py-12 text-slate-500 dark:text-slate-400">
+          <h3 class="text-xl font-semibold mb-3">Welcome to Advanced AI Chat</h3>
+          <p>Type, speak, upload images (preview), organize by project...</p>
         </div>
       </div>
 
       <!-- Input Area -->
-      <div id="chat-input-container" class="fixed bottom-0 left-0 right-0 md:left-72 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-2xl z-30">
+      <div id="input-area" class="fixed bottom-0 left-0 right-0 md:left-72 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-2xl z-30">
         <div id="preview-container" class="px-4 pt-2 flex gap-3 overflow-x-auto hidden"></div>
-        
-        <form id="chat-form" class="max-w-4xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-3">
+
+        <form id="chat-form" class="max-w-4xl mx-auto px-4 py-4 flex flex-col md:flex-row gap-3 items-end">
           <div class="flex-1 flex gap-2">
             <textarea
               id="user-input"
               rows="1"
-              placeholder="Ask anything... (or use voice input)"
-              class="flex-1 resize-none rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 max-h-40 min-h-[52px] leading-6"
+              placeholder="Ask anything... (Shift+Enter = new line)"
+              class="flex-1 resize-none rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-primary max-h-48 min-h-[52px] leading-6"
             ></textarea>
-            
-            <!-- Voice Button -->
-            <button type="button" id="voice-btn" class="self-end p-3 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice Input (Chrome/Edge best)">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+
+            <!-- Voice -->
+            <button type="button" id="voice-btn" class="self-end p-3 rounded-2xl bg-purple-600 text-white hover:bg-purple-700 transition-colors" title="Voice (best in Chrome/Edge)">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 116 0v6a3 3 01-3 3z"/></svg>
             </button>
-            
-            <!-- Upload Button (preview only now) -->
-            <label class="self-end p-3 rounded-xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image (preview)">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+
+            <!-- Image Preview -->
+            <label class="self-end p-3 rounded-2xl bg-green-600 text-white hover:bg-green-700 cursor-pointer transition-colors" title="Upload Image (preview)">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 003 3h10a3 3 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
               <input type="file" id="image-upload" accept="image/*" class="hidden"/>
             </label>
           </div>
 
-          <button
-            type="submit"
-            id="send-btn"
-            class="self-end md:self-center p-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            disabled
-          >
+          <button type="submit" id="send-btn" class="self-end md:self-center p-3 rounded-2xl bg-primary text-white hover:bg-sky-600 disabled:opacity-50 transition-colors" disabled>
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
           </button>
         </form>
       </div>
     </main>
 
-    <!-- Projects Slide-over (mobile) -->
-    <div id="projects-panel" class="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-900 shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col md:hidden">
+    <!-- Mobile Projects Panel -->
+    <div id="projects-panel" class="fixed inset-y-0 right-0 w-80 bg-white dark:bg-slate-900 shadow-2xl translate-x-full transition-transform z-50 flex flex-col md:hidden projects-panel">
       <div class="p-4 border-b flex justify-between items-center">
         <h2 class="text-lg font-semibold">Projects</h2>
-        <button id="close-projects" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+        <button id="close-projects" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -149,50 +139,50 @@
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 hidden">
-      <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-[90%] max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h3 class="text-xl font-semibold">Settings</h3>
-          <button id="close-settings" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div class="p-6 border-b flex justify-between items-center">
+          <h3 class="text-xl font-bold">Settings</h3>
+          <button id="close-settings" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         <div class="p-6 space-y-6">
           <div>
             <label class="block text-sm font-medium mb-2">OpenRouter API Key</label>
-            <input type="password" id="api-key-input" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="sk-or-v1-..."/>
+            <input type="password" id="api-key" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk-or-v1-xxxx"/>
           </div>
           <div>
             <label class="block text-sm font-medium mb-2">Model</label>
-            <input type="text" id="model-input" value="deepseek/deepseek-r1:free" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <input type="text" id="model" value="deepseek/deepseek-r1:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">Global System Prompt (optional)</label>
-            <textarea id="system-prompt-input" rows="4" class="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" placeholder="You are a helpful assistant..."></textarea>
+            <label class="block text-sm font-medium mb-2">System Prompt (optional)</label>
+            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful assistant..."></textarea>
           </div>
-          <button id="save-settings" class="w-full py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">Save Settings</button>
+          <button id="save-settings" class="w-full py-3 bg-primary text-white rounded-xl hover:bg-sky-600 font-medium">Save</button>
         </div>
       </div>
     </div>
-
   </div>
 
   <script>
     // ────────────────────────────────────────────────
-    // State & Constants
+    // State & Storage Keys
     // ────────────────────────────────────────────────
+    const STORAGE = {
+      CHATS: 'ai-chat-chats-v3',
+      PROJECTS: 'ai-chat-projects',
+      SETTINGS: 'ai-chat-settings',
+      THEME: 'ai-chat-theme'
+    };
 
-    const STORAGE_KEY_CHATS     = 'adv-ai-chats';
-    const STORAGE_KEY_SETTINGS  = 'adv-ai-settings';
-    const STORAGE_KEY_THEME     = 'adv-ai-theme';
-    const STORAGE_KEY_PROJECTS  = 'adv-ai-projects';
-
-    let chats = JSON.parse(localStorage.getItem(STORAGE_KEY_CHATS)) || [];
-    let projects = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECTS)) || [];
+    let chats = JSON.parse(localStorage.getItem(STORAGE.CHATS)) || [];
+    let projects = JSON.parse(localStorage.getItem(STORAGE.PROJECTS)) || [];
     let currentChatId = chats.length ? chats[0].id : null;
     let currentProjectId = null;
 
-    let isDark = localStorage.getItem(STORAGE_KEY_THEME) === 'dark' ||
-                (!localStorage.getItem(STORAGE_KEY_THEME) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    let isDark = localStorage.getItem(STORAGE.THEME) === 'dark' ||
+                 (!localStorage.getItem(STORAGE.THEME) && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     let recognition = null;
     let isListening = false;
@@ -202,160 +192,156 @@
     // ────────────────────────────────────────────────
     // DOM Elements
     // ────────────────────────────────────────────────
-
     const els = {
       loading: $('loading'),
       app: $('app'),
       sidebar: $('sidebar'),
-      menuToggle: $('menu-toggle'),
-      chatList: $('chat-list'),
+      menuBtn: $('menu-btn'),
+      chatHistory: $('chat-history'),
       messages: $('messages'),
       userInput: $('user-input'),
       sendBtn: $('send-btn'),
-      chatForm: $('chat-form'),
+      form: $('chat-form'),
       newChatBtn: $('new-chat-btn'),
-      currentChatTitle: $('current-chat-title'),
+      chatTitle: $('chat-title'),
+      darkToggle: $('dark-toggle'),
+      themeLabel: $('theme-label'),
       settingsModal: $('settings-modal'),
       closeSettings: $('close-settings'),
       saveSettings: $('save-settings'),
-      apiKeyInput: $('api-key-input'),
-      modelInput: $('model-input'),
-      systemPromptInput: $('system-prompt-input'),
-      toggleDark: $('toggle-dark'),
-      darkModeLabel: $('dark-mode-label'),
+      apiKey: $('api-key'),
+      model: $('model'),
+      systemPrompt: $('system-prompt'),
+      settingsBtn: $('settings-btn'),
       voiceBtn: $('voice-btn'),
       imageUpload: $('image-upload'),
       previewContainer: $('preview-container'),
       projectsList: $('projects-list'),
       newProjectBtn: $('new-project-btn'),
-      toggleProjects: $('toggle-projects'),
+      projectsToggle: $('projects-toggle'),
       projectsPanel: $('projects-panel'),
       closeProjects: $('close-projects'),
-      projectsPanelContent: $('projects-panel-content'),
+      projectsPanelContent: $('projects-panel-content')
     };
 
     // ────────────────────────────────────────────────
     // Utilities
     // ────────────────────────────────────────────────
+    function uuid() { return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substr(2); }
 
-    function uuid() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c=='x'?r:r&0x3|0x8).toString(16); }); }
-
-    function saveChats()   { localStorage.setItem(STORAGE_KEY_CHATS, JSON.stringify(chats)); }
-    function saveProjects() { localStorage.setItem(STORAGE_KEY_PROJECTS, JSON.stringify(projects)); }
+    function saveChats() { localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats)); }
+    function saveProjects() { localStorage.setItem(STORAGE.PROJECTS, JSON.stringify(projects)); }
 
     function saveSettings() {
-      const s = {
-        apiKey: els.apiKeyInput.value.trim(),
-        model: els.modelInput.value.trim() || 'deepseek/deepseek-r1:free',
-        systemPrompt: els.systemPromptInput.value.trim()
-      };
-      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(s));
+      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify({
+        apiKey: els.apiKey.value.trim(),
+        model: els.model.value.trim() || 'deepseek/deepseek-r1:free',
+        systemPrompt: els.systemPrompt.value.trim()
+      }));
     }
 
     function loadSettings() {
-      const s = JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS)) || {};
-      els.apiKeyInput.value = s.apiKey || '';
-      els.modelInput.value  = s.model || 'deepseek/deepseek-r1:free';
-      els.systemPromptInput.value = s.systemPrompt || '';
+      const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
+      els.apiKey.value = s.apiKey || '';
+      els.model.value = s.model || 'deepseek/deepseek-r1:free';
+      els.systemPrompt.value = s.systemPrompt || '';
       return s;
     }
 
     function applyTheme() {
       document.documentElement.classList.toggle('dark', isDark);
-      els.darkModeLabel.textContent = isDark ? 'On' : 'Off';
-      localStorage.setItem(STORAGE_KEY_THEME, isDark ? 'dark' : 'light');
+      els.themeLabel.textContent = isDark ? 'On' : 'Off';
+      localStorage.setItem(STORAGE.THEME, isDark ? 'dark' : 'light');
     }
 
-    function autoResize() {
+    function autoGrow() {
       els.userInput.style.height = 'auto';
-      els.userInput.style.height = Math.min(els.userInput.scrollHeight, 160)+'px';
+      els.userInput.style.height = Math.min(els.userInput.scrollHeight, 192) + 'px';
     }
 
-    function scrollBottom(smooth=true) {
-      els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: smooth?'smooth':'auto' });
+    function scrollToEnd() {
+      els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: 'smooth' });
     }
 
-    function escapeHtml(unsafe) {
-      return unsafe.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'})[m]);
+    function escapeHTML(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
     }
 
     // ────────────────────────────────────────────────
-    // Chat / Project Management
+    // Chat & Project Management
     // ────────────────────────────────────────────────
-
-    function createNewChat(title='New Chat') {
-      const chat = { id: uuid(), title, messages: [], projectId: currentProjectId, createdAt: Date.now() };
+    function createChat(title = 'New Chat') {
+      const chat = { id: uuid(), title, messages: [], projectId: currentProjectId, created: Date.now() };
       chats.unshift(chat);
       saveChats();
-      switchChat(chat.id);
-      renderChatList();
+      loadChat(chat.id);
+      renderHistory();
       return chat;
     }
 
-    function switchChat(id) {
+    function loadChat(id) {
       currentChatId = id;
-      const chat = chats.find(c=>c.id===id);
+      const chat = chats.find(c => c.id === id);
       if (!chat) return;
-      els.currentChatTitle.textContent = chat.title;
+      els.chatTitle.textContent = chat.title;
       renderMessages(chat.messages);
-      closeSidebar();
     }
 
     function deleteChat(id) {
-      if (!confirm('Delete this chat?')) return;
-      chats = chats.filter(c=>c.id!==id);
+      if (!confirm('Delete conversation?')) return;
+      chats = chats.filter(c => c.id !== id);
       saveChats();
-      if (currentChatId===id) {
-        currentChatId = chats.length ? chats[0].id : null;
-        if (currentChatId) switchChat(currentChatId);
-        else createNewChat();
+      if (currentChatId === id) {
+        currentChatId = chats[0]?.id || null;
+        if (currentChatId) loadChat(currentChatId);
+        else createChat();
       }
-      renderChatList();
+      renderHistory();
     }
 
     function renameChat(id) {
-      const chat = chats.find(c=>c.id===id);
+      const chat = chats.find(c => c.id === id);
       if (!chat) return;
-      const nt = prompt('New title:', chat.title);
-      if (nt?.trim()) {
-        chat.title = nt.trim();
+      const title = prompt('New title:', chat.title)?.trim();
+      if (title) {
+        chat.title = title;
         saveChats();
-        renderChatList();
-        if (currentChatId===id) els.currentChatTitle.textContent = nt.trim();
+        renderHistory();
+        if (currentChatId === id) els.chatTitle.textContent = title;
       }
     }
 
-    function renderChatList() {
-      els.chatList.innerHTML = chats.length ? '' : '<div class="text-center text-gray-500 py-8">No chats yet</div>';
+    function renderHistory() {
+      els.chatHistory.innerHTML = chats.length ? '' : '<div class="p-4 text-center text-slate-500">No chats yet</div>';
       chats.forEach(chat => {
         const active = chat.id === currentChatId;
-        const div = document.createElement('div');
-        div.className = `group p-3 rounded-lg cursor-pointer ${active?'bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300':'hover:bg-gray-100 dark:hover:bg-gray-800'}`;
-        div.innerHTML = `
+        const item = document.createElement('div');
+        item.className = `group p-3 rounded-lg cursor-pointer transition-colors ${active ? 'bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`;
+        item.innerHTML = `
           <div class="flex justify-between items-center">
-            <div class="truncate font-medium">${escapeHtml(chat.title)}</div>
-            <div class="hidden group-hover:flex gap-1">
-              <button class="rename p-1 text-blue-600" data-id="${chat.id}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-              <button class="delete p-1 text-red-600" data-id="${chat.id}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+            <div class="truncate font-medium">${escapeHTML(chat.title)}</div>
+            <div class="hidden group-hover:flex gap-2">
+              <button class="rename p-1 text-sky-600" title="Rename"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+              <button class="delete p-1 text-red-600" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
             </div>
           </div>
-          ${chat.projectId ? `<div class="text-xs text-gray-500">Project: ${projects.find(p=>p.id===chat.projectId)?.title||'?'}</div>` : ''}
+          ${chat.projectId ? `<div class="text-xs text-slate-500">Project: ${projects.find(p=>p.id===chat.projectId)?.title || '?'}</div>` : ''}
         `;
-        div.onclick = e => { if (!e.target.closest('button')) switchChat(chat.id); };
-        div.querySelector('.rename')?.addEventListener('click', ()=>renameChat(chat.id));
-        div.querySelector('.delete')?.addEventListener('click', ()=>deleteChat(chat.id));
-        els.chatList.appendChild(div);
+        item.onclick = e => {
+          if (e.target.closest('button')) return;
+          loadChat(chat.id);
+          if (window.innerWidth < 768) els.sidebar.classList.add('-translate-x-full');
+        };
+        item.querySelector('.rename')?.onclick = () => renameChat(chat.id);
+        item.querySelector('.delete')?.onclick = () => deleteChat(chat.id);
+        els.chatHistory.appendChild(item);
       });
     }
-
-    // ────────────────────────────────────────────────
-    // Projects
-    // ────────────────────────────────────────────────
 
     function createProject() {
       const title = prompt('Project name:')?.trim();
       if (!title) return;
-      const proj = { id: uuid(), title, createdAt: Date.now() };
+      const proj = { id: uuid(), title, created: Date.now() };
       projects.push(proj);
       saveProjects();
       currentProjectId = proj.id;
@@ -363,13 +349,13 @@
     }
 
     function renderProjects() {
-      const html = projects.length ? '' : '<div class="text-sm text-gray-500">No projects yet</div>';
+      const html = projects.length ? '' : '<div class="text-sm text-slate-500 p-2">No projects yet</div>';
       els.projectsList.innerHTML = html;
       els.projectsPanelContent.innerHTML = html;
 
       projects.forEach(p => {
         const item = document.createElement('div');
-        item.className = `p-2 rounded cursor-pointer text-sm ${p.id===currentProjectId?'bg-blue-100 dark:bg-blue-900/40':'hover:bg-gray-100 dark:hover:bg-gray-800'}`;
+        item.className = `p-2 rounded cursor-pointer text-sm ${p.id === currentProjectId ? 'bg-sky-100 dark:bg-sky-900/40' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`;
         item.textContent = p.title;
         item.onclick = () => { currentProjectId = p.id; renderProjects(); };
         els.projectsList.appendChild(item.cloneNode(true));
@@ -380,41 +366,53 @@
     // ────────────────────────────────────────────────
     // Messages & Streaming
     // ────────────────────────────────────────────────
-
-    function renderMessages(msgs) {
+    function renderMessages(messages) {
       els.messages.innerHTML = '';
-      msgs.forEach(m => {
-        const isUser = m.role === 'user';
+      messages.forEach(msg => {
+        const isUser = msg.role === 'user';
         const div = document.createElement('div');
-        div.className = `flex ${isUser?'justify-end':'justify-start'} message-bubble`;
+        div.className = `flex ${isUser ? 'justify-end' : 'justify-start'} message`;
         const bubble = document.createElement('div');
         bubble.className = `p-4 rounded-2xl prose dark:prose-invert max-w-none ${
-          isUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-200 dark:bg-gray-800 rounded-bl-none'
+          isUser ? 'bg-primary text-white rounded-br-none' : 'bg-slate-200 dark:bg-slate-800 rounded-bl-none'
         }`;
-        bubble.innerHTML = isUser ? escapeHtml(m.content) : marked.parse(m.content || '');
+        bubble.innerHTML = isUser ? escapeHTML(msg.content).replace(/\n/g, '<br>') : marked.parse(msg.content || '');
+
+        if (!isUser) {
+          bubble.querySelectorAll('pre code').forEach(block => {
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.textContent = 'Copy';
+            btn.onclick = () => {
+              navigator.clipboard.writeText(block.textContent);
+              btn.textContent = 'Copied!';
+              setTimeout(() => btn.textContent = 'Copy', 2000);
+            };
+            block.parentElement.appendChild(btn);
+          });
+        }
+
         div.appendChild(bubble);
         els.messages.appendChild(div);
       });
-      scrollBottom(false);
+      scrollToEnd();
     }
 
     async function streamResponse(chat) {
       const s = loadSettings();
-      if (!s.apiKey) {
-        alert('Please set your OpenRouter API key in Settings first.');
-        return;
-      }
+      if (!s.apiKey) return alert('Set OpenRouter API key first.');
 
       const assistantMsg = { role: 'assistant', content: '' };
       chat.messages.push(assistantMsg);
 
       const msgDiv = document.createElement('div');
-      msgDiv.className = 'flex justify-start message-bubble';
+      msgDiv.className = 'flex justify-start message';
       const contDiv = document.createElement('div');
-      contDiv.className = 'prose dark:prose-invert bg-gray-200 dark:bg-gray-800 p-4 rounded-2xl rounded-bl-none';
+      contDiv.className = 'p-4 rounded-2xl bg-slate-200 dark:bg-slate-800 rounded-bl-none prose dark:prose-invert max-w-none';
+      contDiv.innerHTML = 'Thinking...';
       msgDiv.appendChild(contDiv);
       els.messages.appendChild(msgDiv);
-      scrollBottom();
+      scrollToEnd();
 
       try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -429,21 +427,21 @@
             model: s.model,
             messages: [
               { role: 'system', content: s.systemPrompt || 'You are a helpful assistant.' },
-              ...chat.messages.slice(0,-1)
+              ...chat.messages.slice(0, -1)
             ],
             stream: true
           })
         });
 
-        if (!res.ok) throw new Error(`API error: ${res.status} - ${await res.text()}`);
+        if (!res.ok) throw new Error(await res.text());
 
         const reader = res.body.getReader();
-        const dec = new TextDecoder();
+        const decoder = new TextDecoder();
 
         while (true) {
-          const {done,value} = await reader.read();
+          const { done, value } = await reader.read();
           if (done) break;
-          const chunk = dec.decode(value);
+          const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -455,15 +453,14 @@
                 if (token) {
                   assistantMsg.content += token;
                   contDiv.innerHTML = marked.parse(assistantMsg.content);
-                  scrollBottom();
+                  scrollToEnd();
                 }
               } catch {}
             }
           }
         }
       } catch (err) {
-        console.error(err);
-        contDiv.innerHTML = `<span class="text-red-600 dark:text-red-400">Error: ${err.message}</span>`;
+        contDiv.innerHTML = `<span class="text-red-600">Error: ${err.message}</span>`;
       }
       saveChats();
     }
@@ -471,8 +468,7 @@
     // ────────────────────────────────────────────────
     // Voice Recognition
     // ────────────────────────────────────────────────
-
-    function initSpeech() {
+    function initVoice() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         els.voiceBtn.disabled = true;
@@ -486,12 +482,11 @@
       recognition.lang = 'en-US';
 
       recognition.onresult = e => {
-        let transcript = '';
-        for (let i = e.resultIndex; i < e.results.length; ++i) {
-          transcript += e.results[i][0].transcript;
-        }
+        const transcript = Array.from(e.results)
+          .map(result => result[0].transcript)
+          .join('');
         els.userInput.value = transcript;
-        autoResize();
+        autoGrow();
         els.sendBtn.disabled = !transcript.trim();
       };
 
@@ -501,16 +496,14 @@
         els.voiceBtn.classList.add('bg-purple-600');
       };
 
-      recognition.onerror = e => {
-        console.error('Speech recognition error', e);
+      recognition.onerror = () => {
         isListening = false;
         els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
-        els.voiceBtn.classList.add('bg-purple-600');
       };
     }
 
     els.voiceBtn.onclick = () => {
-      if (!recognition) return alert('Voice recognition not available in this browser.');
+      if (!recognition) return;
       if (isListening) {
         recognition.stop();
       } else {
@@ -522,78 +515,78 @@
     };
 
     // ────────────────────────────────────────────────
-    // Image Preview (no OCR anymore)
+    // Image Preview
     // ────────────────────────────────────────────────
-
     els.imageUpload.onchange = e => {
       const file = e.target.files[0];
       if (!file || !file.type.startsWith('image/')) return;
 
       const reader = new FileReader();
       reader.onload = ev => {
-        const img = document.createElement('img');
-        img.src = ev.target.result;
-        els.previewContainer.innerHTML = '';
-        els.previewContainer.appendChild(img);
+        els.previewContainer.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
         els.previewContainer.classList.remove('hidden');
       };
       reader.readAsDataURL(file);
     };
 
     // ────────────────────────────────────────────────
-    // UI Controls
+    // Event Listeners
     // ────────────────────────────────────────────────
-
-    function closeSidebar() {
-      if (window.innerWidth < 768) {
-        els.sidebar.classList.add('-translate-x-full');
-        document.body.classList.remove('sidebar-open');
-      }
-    }
-
-    els.menuToggle.onclick = () => {
+    els.menuBtn.onclick = () => {
       els.sidebar.classList.remove('-translate-x-full');
       document.body.classList.add('sidebar-open');
     };
 
-    els.newChatBtn.onclick = () => { createNewChat(); closeSidebar(); };
-    els.newProjectBtn.onclick = createProject;
+    els.newChatBtn.onclick = () => {
+      createChat();
+      if (window.innerWidth < 768) els.sidebar.classList.add('-translate-x-full');
+    };
 
-    els.chatForm.onsubmit = async e => {
+    els.form.onsubmit = async e => {
       e.preventDefault();
       const text = els.userInput.value.trim();
       if (!text) return;
 
-      if (!currentChatId) createNewChat();
-
-      const chat = chats.find(c=>c.id===currentChatId);
+      if (!currentChatId) createChat();
+      const chat = chats.find(c => c.id === currentChatId);
       chat.messages.push({ role: 'user', content: text });
+
       els.userInput.value = '';
-      els.previewContainer.innerHTML = '';
       els.previewContainer.classList.add('hidden');
-      autoResize();
+      els.previewContainer.innerHTML = '';
+      autoGrow();
       els.sendBtn.disabled = true;
 
       renderMessages(chat.messages);
       saveChats();
-      scrollBottom();
+      scrollToEnd();
 
       await streamResponse(chat);
     };
 
     els.userInput.oninput = () => {
       els.sendBtn.disabled = !els.userInput.value.trim();
-      autoResize();
+      autoGrow();
     };
 
     els.userInput.onkeydown = e => {
-      if (e.key==='Enter' && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        els.chatForm.dispatchEvent(new Event('submit'));
+        els.form.dispatchEvent(new Event('submit'));
       }
     };
 
-    els.toggleDark.onclick = () => { isDark = !isDark; applyTheme(); };
+    els.darkToggle.onclick = () => {
+      isDark = !isDark;
+      applyTheme();
+    };
+
+    els.settingsBtn.onclick = () => {
+      loadSettings();
+      els.settingsModal.classList.remove('hidden');
+    };
+
+    els.closeSettings.onclick = () => els.settingsModal.classList.add('hidden');
 
     els.saveSettings.onclick = () => {
       saveSettings();
@@ -601,23 +594,16 @@
       els.settingsModal.classList.add('hidden');
     };
 
-    els.closeSettings.onclick = () => els.settingsModal.classList.add('hidden');
-    $('settings-btn').onclick = () => { loadSettings(); els.settingsModal.classList.remove('hidden'); };
-
-    els.toggleProjects.onclick = () => els.projectsPanel.classList.remove('translate-x-full');
+    els.projectsToggle.onclick = () => els.projectsPanel.classList.remove('translate-x-full');
     els.closeProjects.onclick = () => els.projectsPanel.classList.add('translate-x-full');
 
-    window.onclick = e => {
-      if (e.target === els.settingsModal) els.settingsModal.classList.add('hidden');
-    };
+    els.newProjectBtn.onclick = createProject;
 
     // ────────────────────────────────────────────────
-    // Init with safety net
+    // Init with Safety
     // ────────────────────────────────────────────────
-
     function init() {
-      const loadingTimeout = setTimeout(() => {
-        console.warn('Loading timeout - forcing UI show');
+      const timeout = setTimeout(() => {
         els.loading.style.opacity = '0';
         setTimeout(() => {
           els.loading.style.display = 'none';
@@ -628,35 +614,34 @@
       try {
         applyTheme();
         loadSettings();
-        initSpeech();
-
-        if (chats.length === 0) createNewChat();
-        if (!currentChatId || !chats.some(c=>c.id===currentChatId)) currentChatId = chats[0]?.id;
-
-        renderChatList();
+        initVoice();
         renderProjects();
-        if (currentChatId) switchChat(currentChatId);
 
-        clearTimeout(loadingTimeout);
+        if (chats.length === 0) createChat();
+        if (!currentChatId) currentChatId = chats[0]?.id;
+
+        renderHistory();
+        loadChat(currentChatId);
+
+        clearTimeout(timeout);
         els.loading.style.opacity = '0';
         setTimeout(() => {
           els.loading.style.display = 'none';
           els.app.classList.remove('opacity-0');
         }, 400);
 
-        autoResize();
-        scrollBottom(false);
+        autoGrow();
+        scrollToEnd();
       } catch (err) {
-        console.error('Init error:', err);
-        clearTimeout(loadingTimeout);
-        els.loading.innerHTML = `<div class="text-red-600 text-center p-4">Error loading app: ${err.message}<br>Open console (F12) for details</div>`;
+        console.error(err);
+        els.loading.innerHTML = `<div class="text-red-600 p-4 text-center">Error: ${err.message}<br>Check console (F12)</div>`;
       }
     }
 
     init();
 
     window.addEventListener('resize', () => {
-      autoResize();
+      autoGrow();
       if (window.innerWidth >= 768) document.body.classList.remove('sidebar-open');
     });
   </script>
