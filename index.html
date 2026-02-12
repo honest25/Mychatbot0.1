@@ -21,22 +21,12 @@
     .message { max-width: 85%; }
     @media (min-width: 768px) { .message { max-width: 70%; } }
     pre { position: relative; overflow-x: auto; }
-    .copy-btn {
-      position: absolute; top: 0.5rem; right: 0.5rem;
-      padding: 0.25rem 0.5rem; font-size: 0.75rem;
-      background: rgba(0,0,0,0.5); color: white; border-radius: 0.25rem;
-      cursor: pointer; opacity: 0; transition: opacity 0.2s;
-    }
+    .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; background: rgba(0,0,0,0.5); color: white; border-radius: 0.25rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
     pre:hover .copy-btn { opacity: 1; }
     #preview-container img { max-height: 120px; object-fit: contain; }
     .projects-panel { transition: transform 0.3s ease; }
-    .error-box {
-      background: #fee2e2; color: #991b1b; padding: 1rem;
-      border-radius: 0.75rem; border: 1px solid #fecaca;
-    }
-    .dark .error-box {
-      background: #7f1d1d; color: #fecaca; border-color: #991b1b;
-    }
+    .error-box { background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 0.75rem; border: 1px solid #fecaca; }
+    .dark .error-box { background: #7f1d1d; color: #fecaca; border-color: #991b1b; }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
@@ -60,7 +50,6 @@
 
       <div class="flex-1 overflow-y-auto p-3 space-y-2" id="chat-history"></div>
 
-      <!-- Projects -->
       <div class="p-4 border-t border-slate-200 dark:border-slate-800">
         <h3 class="font-semibold mb-2 flex justify-between items-center">
           Projects
@@ -81,7 +70,7 @@
       </div>
     </aside>
 
-    <!-- Main -->
+    <!-- Main Content -->
     <main class="flex-1 flex flex-col">
 
       <header class="md:hidden bg-white dark:bg-slate-900 border-b px-4 py-3 flex items-center justify-between">
@@ -157,12 +146,12 @@
             <input type="password" id="api-key" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary" placeholder="sk-or-v1-xxxx"/>
           </div>
           <div>
-            <label class="block text-sm font-medium mb-2">Model <span class="text-xs text-slate-500">(choose one that supports system prompts)</span></label>
-            <input type="text" id="model" value="qwen/qwen2.5-vl-3b-instruct:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
+            <label class="block text-sm font-medium mb-2">Model <span class="text-xs text-slate-500">(e.g. stepfun/step-3.5-flash:free)</span></label>
+            <input type="text" id="model" value="stepfun/step-3.5-flash:free" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"/>
           </div>
           <div>
             <label class="block text-sm font-medium mb-2">System Prompt (optional)</label>
-            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful, concise assistant..."></textarea>
+            <textarea id="system-prompt" rows="4" class="w-full px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary resize-y" placeholder="You are a helpful assistant..."></textarea>
           </div>
           <button id="save-settings" class="w-full py-3 bg-primary text-white rounded-xl hover:bg-sky-600 font-medium">Save</button>
         </div>
@@ -172,11 +161,13 @@
   </div>
 
   <script>
+    console.log("Script started – " + new Date().toISOString());
+
     // ────────────────────────────────────────────────
     // State & Storage
     // ────────────────────────────────────────────────
     const STORAGE = {
-      CHATS: 'ai-chat-chats-v4',
+      CHATS: 'ai-chat-chats-v5',
       PROJECTS: 'ai-chat-projects',
       SETTINGS: 'ai-chat-settings',
       THEME: 'ai-chat-theme'
@@ -195,8 +186,55 @@
 
     const $ = id => document.getElementById(id);
 
+    // Simple uuid fallback (no crypto dependency)
+    function uuid() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    }
+
+    function saveChats() { localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats)); }
+    function saveProjects() { localStorage.setItem(STORAGE.PROJECTS, JSON.stringify(projects)); }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify({
+        apiKey: els.apiKey.value.trim(),
+        model: els.model.value.trim() || 'stepfun/step-3.5-flash:free',
+        systemPrompt: els.systemPrompt.value.trim()
+      }));
+    }
+
+    function loadSettings() {
+      const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
+      els.apiKey.value = s.apiKey || '';
+      els.model.value = s.model || 'stepfun/step-3.5-flash:free';
+      els.systemPrompt.value = s.systemPrompt || '';
+      return s;
+    }
+
+    function applyTheme() {
+      document.documentElement.classList.toggle('dark', isDark);
+      els.themeLabel.textContent = isDark ? 'On' : 'Off';
+      localStorage.setItem(STORAGE.THEME, isDark ? 'dark' : 'light');
+    }
+
+    function autoGrow() {
+      if (els.userInput) {
+        els.userInput.style.height = 'auto';
+        els.userInput.style.height = Math.min(els.userInput.scrollHeight, 192) + 'px';
+      }
+    }
+
+    function scrollToEnd() {
+      if (els.messages) {
+        els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: 'smooth' });
+      }
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;' })[m]);
+    }
+
     // ────────────────────────────────────────────────
-    // DOM Elements
+    // DOM Elements (with null checks)
     // ────────────────────────────────────────────────
     const els = {
       loading: $('loading'),
@@ -231,50 +269,7 @@
     };
 
     // ────────────────────────────────────────────────
-    // Utilities
-    // ────────────────────────────────────────────────
-    function uuid() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
-
-    function saveChats() { localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats)); }
-    function saveProjects() { localStorage.setItem(STORAGE.PROJECTS, JSON.stringify(projects)); }
-
-    function saveSettings() {
-      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify({
-        apiKey: els.apiKey.value.trim(),
-        model: els.model.value.trim() || 'qwen/qwen2.5-vl-3b-instruct:free',
-        systemPrompt: els.systemPrompt.value.trim()
-      }));
-    }
-
-    function loadSettings() {
-      const s = JSON.parse(localStorage.getItem(STORAGE.SETTINGS)) || {};
-      els.apiKey.value = s.apiKey || '';
-      els.model.value = s.model || 'qwen/qwen2.5-vl-3b-instruct:free';
-      els.systemPrompt.value = s.systemPrompt || '';
-      return s;
-    }
-
-    function applyTheme() {
-      document.documentElement.classList.toggle('dark', isDark);
-      els.themeLabel.textContent = isDark ? 'On' : 'Off';
-      localStorage.setItem(STORAGE.THEME, isDark ? 'dark' : 'light');
-    }
-
-    function autoGrow() {
-      els.userInput.style.height = 'auto';
-      els.userInput.style.height = Math.min(els.userInput.scrollHeight, 192) + 'px';
-    }
-
-    function scrollToEnd() {
-      els.messages.scrollTo({ top: els.messages.scrollHeight, behavior: 'smooth' });
-    }
-
-    function escapeHTML(str) {
-      return str.replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;' })[m]);
-    }
-
-    // ────────────────────────────────────────────────
-    // Chat & Project Logic
+    // Chat & Project Logic (simplified)
     // ────────────────────────────────────────────────
     function createChat(title = 'New Chat') {
       const chat = { id: uuid(), title, messages: [], projectId: currentProjectId, created: Date.now() };
@@ -282,15 +277,13 @@
       saveChats();
       loadChat(chat.id);
       renderHistory();
-      return chat;
     }
 
     function loadChat(id) {
       currentChatId = id;
       const chat = chats.find(c => c.id === id);
-      if (!chat) return;
-      els.chatTitle.textContent = chat.title;
-      renderMessages(chat.messages);
+      if (chat && els.chatTitle) els.chatTitle.textContent = chat.title;
+      if (chat) renderMessages(chat.messages);
     }
 
     function deleteChat(id) {
@@ -313,11 +306,12 @@
         chat.title = title;
         saveChats();
         renderHistory();
-        if (currentChatId === id) els.chatTitle.textContent = title;
+        if (currentChatId === id && els.chatTitle) els.chatTitle.textContent = title;
       }
     }
 
     function renderHistory() {
+      if (!els.chatHistory) return;
       els.chatHistory.innerHTML = chats.length ? '' : '<div class="p-4 text-center text-slate-500">No chats yet</div>';
       chats.forEach(chat => {
         const active = chat.id === currentChatId;
@@ -336,7 +330,7 @@
         item.onclick = e => {
           if (e.target.closest('button')) return;
           loadChat(chat.id);
-          if (window.innerWidth < 768) els.sidebar.classList.add('-translate-x-full');
+          if (window.innerWidth < 768 && els.sidebar) els.sidebar.classList.add('-translate-x-full');
         };
         item.querySelector('.rename')?.onclick = () => renameChat(chat.id);
         item.querySelector('.delete')?.onclick = () => deleteChat(chat.id);
@@ -355,6 +349,7 @@
     }
 
     function renderProjects() {
+      if (!els.projectsList || !els.projectsPanelContent) return;
       const html = projects.length ? '' : '<div class="text-sm text-slate-500 p-2">No projects yet</div>';
       els.projectsList.innerHTML = html;
       els.projectsPanelContent.innerHTML = html;
@@ -370,9 +365,10 @@
     }
 
     // ────────────────────────────────────────────────
-    // Messages & Streaming (with better error handling)
+    // Messages & Streaming
     // ────────────────────────────────────────────────
     function renderMessages(messages) {
+      if (!els.messages) return;
       els.messages.innerHTML = '';
       messages.forEach(msg => {
         const isUser = msg.role === 'user';
@@ -394,7 +390,7 @@
             btn.className = 'copy-btn';
             btn.textContent = 'Copy';
             btn.onclick = () => {
-              navigator.clipboard.writeText(block.textContent);
+              navigator.clipboard.writeText(block.textContent).catch(() => {});
               btn.textContent = 'Copied!';
               setTimeout(() => btn.textContent = 'Copy', 2000);
             };
@@ -477,7 +473,7 @@
           }
         }
       } catch (err) {
-        assistantMsg.error = `Failed to get response: ${err.message}\n\nTip: Try changing the model to one that supports system prompts (e.g. qwen/qwen2.5-vl-3b-instruct:free or deepseek/deepseek-chat:free)`;
+        assistantMsg.error = `Failed: ${err.message}\n\nTip: Check API key & model (try stepfun/step-3.5-flash:free or arcee-ai/trinity-large-preview:free)`;
         contDiv.innerHTML = `<div class="error-box">${escapeHTML(assistantMsg.error)}</div>`;
       }
 
@@ -489,9 +485,11 @@
     // ────────────────────────────────────────────────
     function initVoice() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        els.voiceBtn.disabled = true;
-        els.voiceBtn.title = 'Voice not supported';
+      if (!SR || !els.voiceBtn) {
+        if (els.voiceBtn) {
+          els.voiceBtn.disabled = true;
+          els.voiceBtn.title = 'Voice not supported';
+        }
         return;
       }
       recognition = new SR();
@@ -504,75 +502,87 @@
         for (let i = e.resultIndex; i < e.results.length; i++) {
           transcript += e.results[i][0].transcript;
         }
-        els.userInput.value = transcript;
-        autoGrow();
-        els.sendBtn.disabled = !transcript.trim();
+        if (els.userInput) {
+          els.userInput.value = transcript;
+          autoGrow();
+          if (els.sendBtn) els.sendBtn.disabled = !transcript.trim();
+        }
       };
 
       recognition.onend = () => {
         isListening = false;
-        els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
-        els.voiceBtn.classList.add('bg-purple-600');
+        if (els.voiceBtn) {
+          els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
+          els.voiceBtn.classList.add('bg-purple-600');
+        }
       };
 
       recognition.onerror = () => {
         isListening = false;
-        els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
+        if (els.voiceBtn) els.voiceBtn.classList.remove('bg-red-600', 'animate-pulse');
       };
     }
 
-    els.voiceBtn.onclick = () => {
-      if (!recognition) return;
-      if (isListening) recognition.stop();
-      else {
-        recognition.start();
-        isListening = true;
-        els.voiceBtn.classList.remove('bg-purple-600');
-        els.voiceBtn.classList.add('bg-red-600', 'animate-pulse');
-      }
-    };
+    if (els.voiceBtn) {
+      els.voiceBtn.onclick = () => {
+        if (!recognition) return;
+        if (isListening) recognition.stop();
+        else {
+          recognition.start();
+          isListening = true;
+          els.voiceBtn.classList.remove('bg-purple-600');
+          els.voiceBtn.classList.add('bg-red-600', 'animate-pulse');
+        }
+      };
+    }
 
     // ────────────────────────────────────────────────
     // Image Preview
     // ────────────────────────────────────────────────
-    els.imageUpload.onchange = e => {
-      const file = e.target.files[0];
-      if (!file || !file.type.startsWith('image/')) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        els.previewContainer.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
-        els.previewContainer.classList.remove('hidden');
+    if (els.imageUpload) {
+      els.imageUpload.onchange = e => {
+        const file = e.target.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (els.previewContainer) {
+            els.previewContainer.innerHTML = `<img src="${ev.target.result}" alt="Preview">`;
+            els.previewContainer.classList.remove('hidden');
+          }
+        };
+        reader.readAsDataURL(file);
       };
-      reader.readAsDataURL(file);
-    };
+    }
 
     // ────────────────────────────────────────────────
-    // Event Listeners
+    // Event Listeners (with null checks)
     // ────────────────────────────────────────────────
-    els.menuBtn.onclick = () => {
-      els.sidebar.classList.remove('-translate-x-full');
+    if (els.menuBtn) els.menuBtn.onclick = () => {
+      if (els.sidebar) els.sidebar.classList.remove('-translate-x-full');
       document.body.classList.add('sidebar-open');
     };
 
-    els.newChatBtn.onclick = () => {
+    if (els.newChatBtn) els.newChatBtn.onclick = () => {
       createChat();
-      if (window.innerWidth < 768) els.sidebar.classList.add('-translate-x-full');
+      if (window.innerWidth < 768 && els.sidebar) els.sidebar.classList.add('-translate-x-full');
     };
 
-    els.form.onsubmit = async e => {
+    if (els.form) els.form.onsubmit = async e => {
       e.preventDefault();
-      const text = els.userInput.value.trim();
+      const text = els.userInput?.value.trim() || '';
       if (!text) return;
 
       if (!currentChatId) createChat();
       const chat = chats.find(c => c.id === currentChatId);
       chat.messages.push({ role: 'user', content: text });
 
-      els.userInput.value = '';
-      els.previewContainer.classList.add('hidden');
-      els.previewContainer.innerHTML = '';
+      if (els.userInput) els.userInput.value = '';
+      if (els.previewContainer) {
+        els.previewContainer.classList.add('hidden');
+        els.previewContainer.innerHTML = '';
+      }
       autoGrow();
-      els.sendBtn.disabled = true;
+      if (els.sendBtn) els.sendBtn.disabled = true;
 
       renderMessages(chat.messages);
       saveChats();
@@ -581,83 +591,124 @@
       await streamResponse(chat);
     };
 
-    els.userInput.oninput = () => {
-      els.sendBtn.disabled = !els.userInput.value.trim();
-      autoGrow();
-    };
+    if (els.userInput) {
+      els.userInput.oninput = () => {
+        if (els.sendBtn) els.sendBtn.disabled = !els.userInput.value.trim();
+        autoGrow();
+      };
 
-    els.userInput.onkeydown = e => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        els.form.dispatchEvent(new Event('submit'));
-      }
-    };
+      els.userInput.onkeydown = e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (els.form) els.form.dispatchEvent(new Event('submit'));
+        }
+      };
+    }
 
-    els.darkToggle.onclick = () => { isDark = !isDark; applyTheme(); };
+    if (els.darkToggle) els.darkToggle.onclick = () => { isDark = !isDark; applyTheme(); };
 
-    els.settingsBtn.onclick = () => {
+    if (els.settingsBtn) els.settingsBtn.onclick = () => {
       loadSettings();
-      els.settingsModal.classList.remove('hidden');
+      if (els.settingsModal) els.settingsModal.classList.remove('hidden');
     };
 
-    els.closeSettings.onclick = () => els.settingsModal.classList.add('hidden');
+    if (els.closeSettings) els.closeSettings.onclick = () => {
+      if (els.settingsModal) els.settingsModal.classList.add('hidden');
+    };
 
-    els.saveSettings.onclick = () => {
+    if (els.saveSettings) els.saveSettings.onclick = () => {
       saveSettings();
       alert('Settings saved!');
-      els.settingsModal.classList.add('hidden');
+      if (els.settingsModal) els.settingsModal.classList.add('hidden');
     };
 
-    els.projectsToggle.onclick = () => els.projectsPanel.classList.remove('translate-x-full');
-    els.closeProjects.onclick = () => els.projectsPanel.classList.add('translate-x-full');
+    if (els.projectsToggle) els.projectsToggle.onclick = () => {
+      if (els.projectsPanel) els.projectsPanel.classList.remove('translate-x-full');
+    };
 
-    els.newProjectBtn.onclick = createProject;
+    if (els.closeProjects) els.closeProjects.onclick = () => {
+      if (els.projectsPanel) els.projectsPanel.classList.add('translate-x-full');
+    };
+
+    if (els.newProjectBtn) els.newProjectBtn.onclick = createProject;
 
     // ────────────────────────────────────────────────
-    // Init
+    // Init with heavy error catching
     // ────────────────────────────────────────────────
     function init() {
+      console.log("init() started");
+
       const timeout = setTimeout(() => {
-        els.loading.style.opacity = '0';
-        setTimeout(() => {
-          els.loading.style.display = 'none';
-          els.app.classList.remove('opacity-0');
-        }, 400);
-      }, 15000);
+        console.warn("Timeout – forcing hide");
+        if (els.loading) {
+          els.loading.innerHTML = '<div class="text-red-600 p-6 text-center">Loading stuck – check console (F12) for errors</div>';
+        }
+      }, 10000);
 
       try {
+        console.log("Theme...");
         applyTheme();
+
+        console.log("Settings...");
         loadSettings();
+
+        console.log("Voice...");
         initVoice();
+
+        console.log("Projects...");
         renderProjects();
 
+        console.log("Chats check...");
         if (chats.length === 0) createChat();
-        if (!currentChatId) currentChatId = chats[0]?.id;
+        if (!currentChatId && chats.length > 0) currentChatId = chats[0].id;
 
+        console.log("History...");
         renderHistory();
+
+        console.log("Load chat...");
         loadChat(currentChatId);
 
+        console.log("Done – hiding loader");
         clearTimeout(timeout);
-        els.loading.style.opacity = '0';
-        setTimeout(() => {
-          els.loading.style.display = 'none';
-          els.app.classList.remove('opacity-0');
-        }, 400);
+
+        if (els.loading) {
+          els.loading.style.opacity = '0';
+          setTimeout(() => {
+            if (els.loading) els.loading.style.display = 'none';
+            if (els.app) els.app.classList.remove('opacity-0');
+          }, 400);
+        }
 
         autoGrow();
         scrollToEnd();
       } catch (err) {
-        console.error(err);
-        els.loading.innerHTML = `<div class="text-red-600 p-4 text-center">Error: ${err.message}<br>Check console (F12)</div>`;
+        console.error("init failed:", err);
+        clearTimeout(timeout);
+        if (els.loading) {
+          els.loading.innerHTML = `
+            <div class="text-red-600 p-6 text-center font-medium">
+              App failed to start<br><br>
+              Error: ${err.message || 'Unknown'}<br>
+              <small>Open console (F12) → Reload page</small>
+            </div>
+          `;
+        }
       }
     }
 
-    init();
+    try {
+      init();
+    } catch (topErr) {
+      console.error("Top-level error:", topErr);
+      document.body.innerHTML = '<div style="padding:2rem;color:red;text-align:center">Critical startup error: ' + (topErr.message || 'Unknown') + '<br><br>Open console (F12) and refresh.</div>';
+    }
 
     window.addEventListener('resize', () => {
       autoGrow();
       if (window.innerWidth >= 768) document.body.classList.remove('sidebar-open');
     });
+
+    console.log("Script end");
   </script>
 </body>
 </html>
